@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galton Board Simulator</title>
+<style>
+  :root{
+    --bg: #0f1220;
+    --panel: #171b2e;
+    --panel-2: #1e2338;
+    --accent: #6ea8fe;
+    --accent-2: #ffb454;
+    --text: #e8ebf5;
+    --muted: #8a90ab;
+    --good: #57d38c;
+    --bad: #ff6b6b;
+    --border: #2a2f4a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: radial-gradient(1200px 800px at 50% -10%, #1a2040 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+  }
+  #app {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+  }
+  #board-wrap {
+    flex: 1 1 auto;
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    min-width: 0;
+  }
+  #board {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  #sidebar {
+    width: 320px;
+    flex: 0 0 320px;
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border-left: 1px solid var(--border);
+    padding: 16px 16px 12px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  h1 {
+    font-size: 15px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 2px;
+    font-weight: 700;
+  }
+  .subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    margin: 0 0 6px;
+  }
+  .card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .card h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 10px;
+    font-weight: 700;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .row:last-child { margin-bottom: 0; }
+  .row label {
+    font-size: 12.5px;
+    color: var(--text);
+    flex: 1 1 auto;
+  }
+  .row .val {
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    color: var(--accent);
+    min-width: 42px;
+    text-align: right;
+  }
+  input[type="range"] {
+    width: 130px;
+    accent-color: var(--accent);
+  }
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  button {
+    flex: 1 1 auto;
+    background: var(--accent);
+    color: #0b0e1c;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 10px;
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: transform 0.05s ease, filter 0.15s ease;
+  }
+  button:hover { filter: brightness(1.08); }
+  button:active { transform: scale(0.97); }
+  button.secondary {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button.danger {
+    background: var(--bad);
+    color: #1a0d0d;
+  }
+  label.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .stat {
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .stat .label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .stat .value {
+    font-size: 17px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    margin-top: 2px;
+  }
+  .legend {
+    display: flex;
+    gap: 14px;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  #hint {
+    font-size: 10.5px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  #fps {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    font-size: 10.5px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    background: rgba(10,12,22,0.5);
+    padding: 3px 7px;
+    border-radius: 6px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="fps">-- fps</div>
+  </div>
+
+  <div id="sidebar">
+    <div>
+      <h1>Galton Board</h1>
+      <p class="subtitle">Real physics · live binomial comparison</p>
+    </div>
+
+    <div class="card">
+      <h2>Run</h2>
+      <div class="btn-row">
+        <button id="btnPlayPause">Pause</button>
+        <button id="btnReset" class="danger">Reset</button>
+      </div>
+      <div class="btn-row" style="margin-top:8px;">
+        <button id="btnBurst100" class="secondary">+100 balls</button>
+        <button id="btnBurst1000" class="secondary">+1000 balls</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Controls</h2>
+      <div class="row">
+        <label for="rows">Peg rows</label>
+        <input type="range" id="rows" min="4" max="24" step="1" value="14">
+        <span class="val" id="rowsVal">14</span>
+      </div>
+      <div class="row">
+        <label for="rate">Drop rate (balls/s)</label>
+        <input type="range" id="rate" min="1" max="300" step="1" value="30">
+        <span class="val" id="rateVal">30</span>
+      </div>
+      <div class="row">
+        <label for="speed">Sim speed</label>
+        <input type="range" id="speed" min="0.25" max="6" step="0.25" value="1">
+        <span class="val" id="speedVal">1.0x</span>
+      </div>
+      <div class="row">
+        <label for="gravity">Gravity</label>
+        <input type="range" id="gravity" min="200" max="3000" step="50" value="1200">
+        <span class="val" id="gravityVal">1200</span>
+      </div>
+      <div class="row">
+        <label for="restitution">Bounciness</label>
+        <input type="range" id="restitution" min="0.1" max="0.75" step="0.05" value="0.35">
+        <span class="val" id="restitutionVal">0.35</span>
+      </div>
+      <div class="row">
+        <label for="jitter">Peg randomness</label>
+        <input type="range" id="jitter" min="0" max="60" step="2" value="18">
+        <span class="val" id="jitterVal">18</span>
+      </div>
+      <div class="row">
+        <label for="ballSize">Ball size</label>
+        <input type="range" id="ballSize" min="2" max="9" step="0.5" value="4">
+        <span class="val" id="ballSizeVal">4</span>
+      </div>
+      <div class="row">
+        <label for="reservoir">Hopper capacity</label>
+        <input type="range" id="reservoir" min="50" max="3000" step="50" value="500">
+        <span class="val" id="reservoirVal">500</span>
+      </div>
+      <div class="row" style="margin-top:2px;">
+        <label class="checkbox"><input type="checkbox" id="showTheory" checked> Show theoretical curve</label>
+      </div>
+      <div class="row">
+        <label class="checkbox"><input type="checkbox" id="showTrails"> Show ball trails</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Live Stats</h2>
+      <div class="stat-grid">
+        <div class="stat"><div class="label">Dropped</div><div class="value" id="statTotal">0</div></div>
+        <div class="stat"><div class="label">In hopper</div><div class="value" id="statReservoir">0</div></div>
+        <div class="stat"><div class="label">In flight</div><div class="value" id="statFlight">0</div></div>
+        <div class="stat"><div class="label">Mean (actual)</div><div class="value" id="statMeanA">–</div></div>
+        <div class="stat"><div class="label">Mean (theory)</div><div class="value" id="statMeanT">–</div></div>
+        <div class="stat"><div class="label">Std dev (actual)</div><div class="value" id="statStdA">–</div></div>
+        <div class="stat"><div class="label">Std dev (theory)</div><div class="value" id="statStdT">–</div></div>
+        <div class="stat" style="grid-column: 1 / -1;"><div class="label">Chi-squared fit (lower = closer)</div><div class="value" id="statChi">–</div></div>
+      </div>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--accent)"></span>Actual counts</span>
+        <span><span class="swatch" style="background:var(--accent-2)"></span>Theoretical (binomial)</span>
+      </div>
+    </div>
+
+    <div id="hint">
+      Balls drain from the hopper at top, then bounce through a triangular peg
+      lattice via real gravity + collisions. Tiny randomness on each peg strike
+      (adjustable) models real-world imperfections — this is what produces the
+      binomial spread, exactly as on a physical board. Bin counts are compared
+      live against the theoretical Binomial(n = rows, p = 0.5) distribution.
+      The hopper holds a finite supply — once it drains, press Reset to refill.
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Canvas setup ----------
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const boardWrap = document.getElementById('board-wrap');
+  const fpsEl = document.getElementById('fps');
+
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let W = 0, H = 0; // CSS pixel dimensions
+
+  // Offscreen cached layer for static pegs (avoid redrawing every frame)
+  const pegLayer = document.createElement('canvas');
+  const pegCtx = pegLayer.getContext('2d');
+
+  // ---------- Controls ----------
+  const els = {
+    rows: document.getElementById('rows'),
+    rate: document.getElementById('rate'),
+    speed: document.getElementById('speed'),
+    gravity: document.getElementById('gravity'),
+    restitution: document.getElementById('restitution'),
+    jitter: document.getElementById('jitter'),
+    ballSize: document.getElementById('ballSize'),
+    reservoir: document.getElementById('reservoir'),
+    showTheory: document.getElementById('showTheory'),
+    showTrails: document.getElementById('showTrails'),
+  };
+  const vals = {
+    rows: document.getElementById('rowsVal'),
+    rate: document.getElementById('rateVal'),
+    speed: document.getElementById('speedVal'),
+    gravity: document.getElementById('gravityVal'),
+    restitution: document.getElementById('restitutionVal'),
+    jitter: document.getElementById('jitterVal'),
+    ballSize: document.getElementById('ballSizeVal'),
+    reservoir: document.getElementById('reservoirVal'),
+  };
+
+  const state = {
+    rows: parseInt(els.rows.value, 10),
+    dropRate: parseFloat(els.rate.value),
+    speed: parseFloat(els.speed.value),
+    gravity: parseFloat(els.gravity.value),
+    restitution: parseFloat(els.restitution.value),
+    jitter: parseFloat(els.jitter.value),
+    ballRadius: parseFloat(els.ballSize.value),
+    reservoirCapacity: parseInt(els.reservoir.value, 10),
+    showTheory: els.showTheory.checked,
+    showTrails: els.showTrails.checked,
+    running: true,
+  };
+  let reservoirRemaining = state.reservoirCapacity;
+
+  function syncLabel(key, fmt) {
+    vals[key].textContent = fmt ? fmt(state[key]) : state[key];
+  }
+  syncLabel('rows');
+  syncLabel('rate');
+  syncLabel('speed', v => v.toFixed(2) + 'x');
+  syncLabel('gravity');
+  syncLabel('restitution', v => v.toFixed(2));
+  syncLabel('jitter');
+  vals.ballSize.textContent = state.ballRadius.toFixed(1);
+  vals.reservoir.textContent = state.reservoirCapacity;
+
+  els.rows.addEventListener('input', () => {
+    state.rows = parseInt(els.rows.value, 10);
+    syncLabel('rows');
+    rebuildBoard();
+    resetSim(false);
+  });
+  els.rate.addEventListener('input', () => { state.dropRate = parseFloat(els.rate.value); syncLabel('rate'); });
+  els.speed.addEventListener('input', () => { state.speed = parseFloat(els.speed.value); syncLabel('speed', v => v.toFixed(2) + 'x'); });
+  els.gravity.addEventListener('input', () => { state.gravity = parseFloat(els.gravity.value); syncLabel('gravity'); });
+  els.restitution.addEventListener('input', () => { state.restitution = parseFloat(els.restitution.value); syncLabel('restitution', v => v.toFixed(2)); });
+  els.jitter.addEventListener('input', () => { state.jitter = parseFloat(els.jitter.value); syncLabel('jitter'); });
+  els.ballSize.addEventListener('input', () => {
+    state.ballRadius = parseFloat(els.ballSize.value);
+    vals.ballSize.textContent = state.ballRadius.toFixed(1);
+    rebuildBoard();
+  });
+  els.reservoir.addEventListener('input', () => {
+    state.reservoirCapacity = parseInt(els.reservoir.value, 10);
+    vals.reservoir.textContent = state.reservoirCapacity;
+    reservoirRemaining = state.reservoirCapacity;
+    updateStatsDOM();
+  });
+  els.showTheory.addEventListener('change', () => { state.showTheory = els.showTheory.checked; });
+  els.showTrails.addEventListener('change', () => { state.showTrails = els.showTrails.checked; if(!state.showTrails) trailCanvasNeedsClear = true; });
+
+  const btnPlayPause = document.getElementById('btnPlayPause');
+  btnPlayPause.addEventListener('click', () => {
+    state.running = !state.running;
+    btnPlayPause.textContent = state.running ? 'Pause' : 'Play';
+  });
+  document.getElementById('btnReset').addEventListener('click', () => resetSim(true));
+  document.getElementById('btnBurst100').addEventListener('click', () => burst(100));
+  document.getElementById('btnBurst1000').addEventListener('click', () => burst(1000));
+
+  // ---------- Geometry / board layout ----------
+  let layout = null; // { pegRows: [{y, xs:[...]}], binX:[...], topMargin, spacingX, spacingY, floorY, binTop, centerX }
+
+  function rebuildBoard() {
+    const R = state.rows;
+    // marginTop leaves room above the peg triangle for the hopper/reservoir —
+    // the visual "supply" of balls waiting to drop — plus its drain chute.
+    const marginTop = 132;
+    const marginBottom = 130;
+    const usableH = Math.max(H - marginTop - marginBottom, 100);
+    const spacingY = usableH / (R + 1);
+    const spacingX = Math.min(spacingY * 1.15, (W * 0.92) / (R + 2));
+    const centerX = W / 2;
+
+    const pegRows = [];
+    for (let r = 0; r < R; r++) {
+      const y = marginTop + (r + 1) * spacingY;
+      const count = r + 1;
+      const xs = new Float64Array(count);
+      for (let j = 0; j < count; j++) {
+        xs[j] = centerX + (j - r / 2) * spacingX;
+      }
+      pegRows.push({ y, xs });
+    }
+
+    const binCount = R + 1;
+    const binX = new Float64Array(binCount);
+    for (let k = 0; k < binCount; k++) {
+      binX[k] = centerX + (k - R / 2) * spacingX;
+    }
+
+    // Gap between the last peg row and the bins: clamped to a sane absolute pixel
+    // range rather than scaled by spacingY. A raw spacingY-based gap (as if there
+    // were one more full row of falling room) looks fine at 14+ rows but leaves a
+    // huge dead void at low row counts, where spacingY balloons to fill the same
+    // usable height with far fewer rows.
+    const lastRowGap = Math.min(Math.max(spacingY * 0.55, 36), 64);
+    const binTop = marginTop + R * spacingY + lastRowGap;
+    const floorY = H - 34;
+
+    // Hopper (reservoir) geometry: a funnel that narrows from a wide basin down to
+    // a slim spout, sitting directly above the peg triangle. Balls visually drain
+    // out of the spout and fall a short "chute" before entering the peg field.
+    const hopperBottom = marginTop - 26;
+    const hopperTop = 16;
+    const hopperTopHalfW = Math.min(spacingX * (R / 2 + 1.6) + 20, W * 0.44);
+    const hopperBotHalfW = Math.max(spacingX * 0.3, layout ? layout.pegRadius * 1.8 : 8);
+    const spoutY = marginTop - 10;
+
+    layout = {
+      R, pegRows, binX, binCount,
+      marginTop, spacingX, spacingY,
+      centerX, binTop, floorY,
+      pegRadius: Math.max(2.2, state.ballRadius * 0.85),
+      wallLeft: binX[0] - spacingX / 2,
+      wallRight: binX[binCount - 1] + spacingX / 2,
+      hopperTop, hopperBottom, hopperTopHalfW, hopperBotHalfW, spoutY,
+      // Shared cap on how tall a bin's landed-ball pile may grow, in both the
+      // physics rest position and the render — keeps a heavily favored bin's
+      // pile from ever climbing high enough to clip into the peg field.
+      maxStackHeight: Math.max((floorY - binTop) - state.ballRadius * 3, state.ballRadius * 2),
+    };
+
+    drawPegLayer();
+    resizeHistogramCache();
+  }
+
+  function drawPegLayer() {
+    pegLayer.width = canvas.width;
+    pegLayer.height = canvas.height;
+    pegCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    pegCtx.clearRect(0, 0, W, H);
+
+    const L = layout;
+    const cx = L.centerX;
+
+    // --- Hopper (reservoir) housing: a funnel basin narrowing to a spout, drawn
+    // as a static glass-like outline. The actual pile of waiting balls is dynamic
+    // (drains as balls drop) and is painted separately, every frame, in render().
+    pegCtx.beginPath();
+    pegCtx.moveTo(cx - L.hopperTopHalfW, L.hopperTop);
+    pegCtx.lineTo(cx - L.hopperBotHalfW, L.hopperBottom);
+    pegCtx.lineTo(cx + L.hopperBotHalfW, L.hopperBottom);
+    pegCtx.lineTo(cx + L.hopperTopHalfW, L.hopperTop);
+    const hopperGlass = pegCtx.createLinearGradient(0, L.hopperTop, 0, L.hopperBottom);
+    hopperGlass.addColorStop(0, 'rgba(255,255,255,0.05)');
+    hopperGlass.addColorStop(1, 'rgba(255,255,255,0.02)');
+    pegCtx.fillStyle = hopperGlass;
+    pegCtx.fill();
+    pegCtx.strokeStyle = 'rgba(180,196,255,0.35)';
+    pegCtx.lineWidth = 2;
+    pegCtx.stroke();
+    // Rim highlight along the top lip of the basin
+    pegCtx.beginPath();
+    pegCtx.moveTo(cx - L.hopperTopHalfW, L.hopperTop);
+    pegCtx.lineTo(cx + L.hopperTopHalfW, L.hopperTop);
+    pegCtx.strokeStyle = 'rgba(220,230,255,0.55)';
+    pegCtx.lineWidth = 1.5;
+    pegCtx.stroke();
+    // Chute: narrow drop tube carrying balls from the spout into the peg field
+    pegCtx.strokeStyle = 'rgba(180,196,255,0.28)';
+    pegCtx.lineWidth = 1.5;
+    pegCtx.beginPath();
+    pegCtx.moveTo(cx - L.hopperBotHalfW * 0.7, L.hopperBottom);
+    pegCtx.lineTo(cx - L.pegRadius * 1.4, L.spoutY + 6);
+    pegCtx.moveTo(cx + L.hopperBotHalfW * 0.7, L.hopperBottom);
+    pegCtx.lineTo(cx + L.pegRadius * 1.4, L.spoutY + 6);
+    pegCtx.stroke();
+
+    // Pegs — soft drop shadow first, then a glossy gradient sphere on top
+    for (const row of L.pegRows) {
+      for (let j = 0; j < row.xs.length; j++) {
+        const x = row.xs[j];
+        pegCtx.beginPath();
+        pegCtx.fillStyle = 'rgba(0,0,0,0.35)';
+        pegCtx.arc(x + 1.2, row.y + 1.8, L.pegRadius, 0, Math.PI * 2);
+        pegCtx.fill();
+
+        const grad = pegCtx.createRadialGradient(
+          x - L.pegRadius * 0.35, row.y - L.pegRadius * 0.35, 0.4,
+          x, row.y, L.pegRadius * 1.15
+        );
+        grad.addColorStop(0, '#fff3da');
+        grad.addColorStop(0.55, '#e8ac54');
+        grad.addColorStop(1, '#a9691f');
+        pegCtx.fillStyle = grad;
+        pegCtx.beginPath();
+        pegCtx.arc(x, row.y, L.pegRadius, 0, Math.PI * 2);
+        pegCtx.fill();
+      }
+    }
+
+    // Bin dividers, subtly brighter near the top where balls actually funnel in
+    pegCtx.strokeStyle = 'rgba(255,255,255,0.16)';
+    pegCtx.lineWidth = 1;
+    for (let k = 0; k <= L.binCount; k++) {
+      const x = cx + (k - L.R / 2) * L.spacingX;
+      pegCtx.beginPath();
+      pegCtx.moveTo(x, L.binTop);
+      pegCtx.lineTo(x, L.floorY);
+      pegCtx.stroke();
+    }
+
+    // Floor with a soft shadow beneath it for depth
+    pegCtx.fillStyle = 'rgba(0,0,0,0.25)';
+    pegCtx.fillRect(L.wallLeft, L.floorY, L.wallRight - L.wallLeft, 6);
+    pegCtx.beginPath();
+    pegCtx.moveTo(L.wallLeft, L.floorY);
+    pegCtx.lineTo(L.wallRight, L.floorY);
+    pegCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+    pegCtx.lineWidth = 1.5;
+    pegCtx.stroke();
+
+    // Bin index labels beneath the floor (offset from center, i.e. net left/right steps)
+    pegCtx.fillStyle = 'rgba(138,144,171,0.85)';
+    pegCtx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    pegCtx.textAlign = 'center';
+    pegCtx.textBaseline = 'top';
+    for (let k = 0; k < L.binCount; k++) {
+      const label = k - L.R / 2;
+      const text = (label > 0 ? '+' : '') + (Number.isInteger(label) ? label : label.toFixed(1));
+      pegCtx.fillText(text, L.binX[k], L.floorY + 9);
+    }
+  }
+
+  // ---------- Ball pool ----------
+  const MAX_BALLS = 20000;
+  const bx = new Float64Array(MAX_BALLS);
+  const by = new Float64Array(MAX_BALLS);
+  const bvx = new Float64Array(MAX_BALLS);
+  const bvy = new Float64Array(MAX_BALLS);
+  const bAlive = new Uint8Array(MAX_BALLS);   // 1 = active/falling, 0 = free slot
+  const bLanded = new Uint8Array(MAX_BALLS);  // 1 = landed & resting (rendered statically)
+  const bBin = new Int16Array(MAX_BALLS).fill(-1);
+  let freeStack = [];
+  for (let i = MAX_BALLS - 1; i >= 0; i--) freeStack.push(i);
+  let activeCount = 0;
+  const activeIdx = new Int32Array(MAX_BALLS); // compacted list of active indices
+  let activeLen = 0;
+
+  const binCounts = [];       // total landed per bin (unbounded count, not capped by MAX_BALLS render logic)
+  const binRenderCap = 60;    // draw individual resting balls up to this many per bin; beyond -> bar fill
+  let totalDropped = 0;
+
+  function resetSim(clearControlsToo) {
+    activeLen = 0;
+    freeStack.length = 0;
+    for (let i = MAX_BALLS - 1; i >= 0; i--) freeStack.push(i);
+    bAlive.fill(0);
+    bLanded.fill(0);
+    totalDropped = 0;
+    binCounts.length = 0;
+    if (layout) for (let i = 0; i < layout.binCount; i++) binCounts.push(0);
+    dropAccumulator = 0;
+    reservoirRemaining = state.reservoirCapacity;
+    clearTrails();
+    updateStatsDOM();
+  }
+
+  function resizeHistogramCache() {
+    const old = binCounts.slice();
+    binCounts.length = 0;
+    for (let i = 0; i < layout.binCount; i++) binCounts.push(old[i] || 0);
+  }
+
+  function spawnBall() {
+    if (freeStack.length === 0) return false; // pool exhausted; drop silently
+    if (reservoirRemaining <= 0) return false; // hopper is empty until Reset refills it
+    const i = freeStack.pop();
+    bx[i] = layout.centerX + (Math.random() - 0.5) * 3;
+    by[i] = layout.spoutY;
+    bvx[i] = (Math.random() - 0.5) * 6;
+    bvy[i] = 40; // small initial speed so it visibly emerges from the spout, not from rest
+    bAlive[i] = 1;
+    bLanded[i] = 0;
+    bBin[i] = -1;
+    activeIdx[activeLen++] = i;
+    totalDropped++;
+    reservoirRemaining--;
+    return true;
+  }
+
+  function burst(n) {
+    for (let k = 0; k < n; k++) {
+      if (!spawnBall()) break;
+    }
+    updateStatsDOM();
+  }
+
+  // ---------- Physics ----------
+  // A high substep rate matters here: balls accelerate under gravity through many
+  // peg rows, and if a substep's displacement ever exceeds the ball+peg collision
+  // radius, a fast ball can tunnel straight through a peg without the overlap ever
+  // being detected. 1/400s keeps per-step displacement well under that radius even
+  // at the velocity clamp below.
+  const FIXED_DT = 1 / 400;
+  let physAccumulator = 0;
+  let dropAccumulator = 0;
+
+  function nearestRowIndex(y) {
+    const r = Math.round((y - layout.marginTop) / layout.spacingY) - 1;
+    return r;
+  }
+
+  function stepPhysics(dt) {
+    const g = state.gravity;
+    const restitution = state.restitution;
+    const jitterMag = state.jitter;
+    const R = layout.R;
+    const rBall = state.ballRadius;
+    const pegR = layout.pegRadius;
+    const minDist = rBall + pegR;
+    const minDistSq = minDist * minDist;
+    const wallLeft = layout.wallLeft;
+    const wallRight = layout.wallRight;
+    const floorY = layout.floorY;
+    const binTop = layout.binTop;
+    const spacingX = layout.spacingX;
+
+    let writeIdx = 0;
+    for (let a = 0; a < activeLen; a++) {
+      const i = activeIdx[a];
+      if (!bAlive[i]) continue;
+
+      // integrate
+      bvy[i] += g * dt;
+      bx[i] += bvx[i] * dt;
+      by[i] += bvy[i] * dt;
+
+      let x = bx[i], y = by[i], vx = bvx[i], vy = bvy[i];
+
+      if (y < binTop) {
+        // --- peg region: only test rows near current y (cheap culling) ---
+        const rowIdx = nearestRowIndex(y);
+        for (let rr = rowIdx - 1; rr <= rowIdx + 1; rr++) {
+          if (rr < 0 || rr >= R) continue;
+          const row = layout.pegRows[rr];
+          const py = row.y;
+          const dy0 = y - py;
+          if (dy0 * dy0 > minDistSq * 4) continue;
+          const xs = row.xs;
+          // Pegs within a row are evenly spaced by spacingX, so the nearest one(s)
+          // to this ball can be found directly instead of scanning the whole row —
+          // deep rows have up to R pegs, and this turns an O(row length) scan into
+          // an O(1) lookup, which matters a lot once thousands of balls are active.
+          const jGuess = Math.round((x - row.xs[0]) / spacingX);
+          const jLo = Math.max(0, jGuess - 1);
+          const jHi = Math.min(xs.length - 1, jGuess + 1);
+          for (let j = jLo; j <= jHi; j++) {
+            const px = xs[j];
+            const dx = x - px;
+            const dy = y - py;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < minDistSq && distSq > 1e-6) {
+              const dist = Math.sqrt(distSq);
+              const nx = dx / dist, ny = dy / dist;
+              // push out of penetration
+              const overlap = minDist - dist;
+              x += nx * overlap;
+              y += ny * overlap;
+              const vDotN = vx * nx + vy * ny;
+              // Only resolve an *approaching* contact (vDotN < 0). Re-testing the same
+              // overlap on a later substep after it has already separated must not
+              // bounce it again, or a ball sitting near a peg apex "chatters" forever.
+              if (vDotN < 0) {
+                // A plain velocity-reflection bounce is numerically fragile here: its
+                // outgoing speed depends on the incoming angle/speed, and a near-dead-
+                // center hit (the common case, since consecutive rows are offset by
+                // exactly half a spacing) gives almost no natural sideways deflection —
+                // gravity then pulls the ball straight back into the same peg. Small
+                // fixes to that (minimum escape speed, rebound cap) turned out to be
+                // very sensitive to the exact hang-time math and easily over/under-shot
+                // the next row by several times, wrecking the distribution.
+                //
+                // Instead every contact resolves to one clean, calibrated "hop": a fixed
+                // rebound height (tuned by the bounciness slider) and a fixed horizontal
+                // speed sized — using real projectile-motion timing for that exact
+                // rebound height — so the arc lands the ball right around the next row's
+                // neighboring peg. This is still a real gravity-driven arc, not a
+                // teleport, but it removes the runaway energy/velocity accumulation that
+                // made continuous reflection physics unstable at this scale. Which side
+                // it hops to is decided by which side of the peg it struck (a genuine
+                // coin flip when the approach is dead-center), plus a small random
+                // jitter on top for natural-looking variation.
+                const reboundSpeed = Math.sqrt(2 * g * layout.spacingY * (0.18 + 0.55 * restitution));
+                const hangTime = (reboundSpeed + Math.sqrt(reboundSpeed * reboundSpeed + 2 * g * layout.spacingY)) / g;
+                const hopVx = (spacingX * 0.5) / hangTime;
+                const dirSign = dx !== 0 ? Math.sign(dx) : (Math.random() < 0.5 ? -1 : 1);
+                const jitterAmt = (Math.random() - 0.5) * jitterMag;
+                vx = dirSign * hopVx + jitterAmt;
+                vy = -reboundSpeed;
+              }
+            }
+          }
+        }
+        // side walls of the funnel area (generous bounds so balls don't escape)
+        if (x < wallLeft + rBall) { x = wallLeft + rBall; vx = Math.abs(vx) * restitution; }
+        if (x > wallRight - rBall) { x = wallRight - rBall; vx = -Math.abs(vx) * restitution; }
+
+        // Safety clamp: bounds runaway velocity from any residual numerical chatter.
+        const maxV = 2200;
+        if (vx > maxV) vx = maxV; else if (vx < -maxV) vx = -maxV;
+        if (vy > maxV) vy = maxV; else if (vy < -maxV) vy = -maxV;
+      } else {
+        // --- bin channel region ---
+        // determine which bin this x currently belongs to and clamp within its divider walls
+        let k = Math.round((x - layout.centerX) / spacingX + R / 2);
+        if (k < 0) k = 0;
+        if (k > R) k = R;
+        const binCenter = layout.binX[k];
+        const leftWall = binCenter - spacingX / 2 + rBall;
+        const rightWall = binCenter + spacingX / 2 - rBall;
+        if (x < leftWall) { x = leftWall; vx = Math.abs(vx) * 0.3; }
+        if (x > rightWall) { x = rightWall; vx = -Math.abs(vx) * 0.3; }
+
+        // Cap how tall a bin's rest pile can visually grow: without this, a heavily
+        // favored center bin (which realistically gets a large share of all balls)
+        // would compute a rest position that climbs above binTop and clips straight
+        // through the peg field. Past the cap, additional balls in that bin just
+        // settle at the same capped height — the exact count is still tracked and
+        // shown as a number once the pile is full (see render()).
+        const stackHeight = Math.min((binCounts[k] || 0) * (rBall * 2 * 0.92), layout.maxStackHeight);
+        const restY = floorY - rBall - stackHeight;
+        if (y >= restY) {
+          y = restY;
+          vx = 0; vy = 0;
+          bLanded[i] = 1;
+          bAlive[i] = 0;
+          bBin[i] = k;
+          binCounts[k] = (binCounts[k] || 0) + 1;
+          freeStack.push(i);
+          bx[i] = x; by[i] = y;
+          continue; // don't keep in active list
+        }
+      }
+
+      bx[i] = x; by[i] = y; bvx[i] = vx; bvy[i] = vy;
+      activeIdx[writeIdx++] = i;
+    }
+    activeLen = writeIdx;
+  }
+
+  // ---------- Trails (optional, drawn on a persistent low-opacity layer) ----------
+  const trailCanvas = document.createElement('canvas');
+  const trailCtx = trailCanvas.getContext('2d');
+  let trailCanvasNeedsClear = false;
+  function clearTrails() {
+    trailCtx.setTransform(1,0,0,1,0,0);
+    trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+  }
+
+  // ---------- Stats ----------
+  function logChoose(n, k) {
+    // log( n! / (k!(n-k)!) ) via lgamma approximation using Math (Stirling) for stability
+    function lgamma(x) {
+      // Lanczos approximation
+      const g = 7;
+      const c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028,
+        771.32342877765313, -176.61502916214059, 12.507343278686905,
+        -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+      if (x < 0.5) {
+        return Math.log(Math.PI / Math.sin(Math.PI * x)) - lgamma(1 - x);
+      }
+      x -= 1;
+      let a = c[0];
+      const t = x + g + 0.5;
+      for (let i = 1; i < g + 2; i++) a += c[i] / (x + i);
+      return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+    }
+    return lgamma(n + 1) - lgamma(k + 1) - lgamma(n - k + 1);
+  }
+
+  function theoreticalCounts(R, total) {
+    const out = new Float64Array(R + 1);
+    for (let k = 0; k <= R; k++) {
+      const logP = logChoose(R, k) - R * Math.LN2; // p=0.5
+      out[k] = Math.exp(logP) * total;
+    }
+    return out;
+  }
+
+  const statTotal = document.getElementById('statTotal');
+  const statReservoir = document.getElementById('statReservoir');
+  const statFlight = document.getElementById('statFlight');
+  const statMeanA = document.getElementById('statMeanA');
+  const statMeanT = document.getElementById('statMeanT');
+  const statStdA = document.getElementById('statStdA');
+  const statStdT = document.getElementById('statStdT');
+  const statChi = document.getElementById('statChi');
+
+  let lastStatsUpdate = 0;
+  function updateStatsDOM() {
+    statTotal.textContent = totalDropped.toLocaleString();
+    statReservoir.textContent = reservoirRemaining.toLocaleString();
+    statFlight.textContent = activeLen.toLocaleString();
+
+    const R = layout ? layout.R : 0;
+    let landedTotal = 0;
+    let sum = 0, sumSq = 0;
+    for (let k = 0; k <= R; k++) {
+      const c = binCounts[k] || 0;
+      landedTotal += c;
+      sum += k * c;
+      sumSq += k * k * c;
+    }
+    const meanA = landedTotal > 0 ? sum / landedTotal : NaN;
+    const varA = landedTotal > 0 ? (sumSq / landedTotal - meanA * meanA) : NaN;
+    const stdA = Math.sqrt(Math.max(varA, 0));
+
+    const p = 0.5;
+    const meanT = R * p;
+    const stdT = Math.sqrt(R * p * (1 - p));
+
+    statMeanA.textContent = landedTotal > 0 ? meanA.toFixed(2) : '–';
+    statMeanT.textContent = R > 0 ? meanT.toFixed(2) : '–';
+    statStdA.textContent = landedTotal > 0 ? stdA.toFixed(2) : '–';
+    statStdT.textContent = R > 0 ? stdT.toFixed(2) : '–';
+
+    if (landedTotal > 5 && R > 0) {
+      const theory = theoreticalCounts(R, landedTotal);
+      let chi = 0;
+      for (let k = 0; k <= R; k++) {
+        const exp = Math.max(theory[k], 1e-6);
+        const obs = binCounts[k] || 0;
+        chi += (obs - exp) * (obs - exp) / exp;
+      }
+      statChi.textContent = chi.toFixed(2);
+    } else {
+      statChi.textContent = '–';
+    }
+  }
+
+  // ---------- Rendering ----------
+
+  // Dynamic hopper pile: the reservoir's fill level, redrawn every frame since it
+  // drains continuously. The static basin outline lives in the cached pegLayer;
+  // this is just the "sand"/ball-pile mass sitting inside it.
+  function drawHopperPile() {
+    const L = layout;
+    const level = Math.max(0, Math.min(1, reservoirRemaining / state.reservoirCapacity));
+    if (level <= 0.002) return;
+    const cx = L.centerX;
+    const totalH = L.hopperBottom - L.hopperTop;
+    const fillH = level * totalH;
+    const surfaceY = L.hopperBottom - fillH;
+    const t = (surfaceY - L.hopperTop) / totalH;
+    const halfWAtSurface = L.hopperTopHalfW + (L.hopperBotHalfW - L.hopperTopHalfW) * t;
+
+    // Bumpy top surface using a fixed deterministic waveform (not re-randomized
+    // per frame) so the pile looks like loose balls/sand without flickering.
+    const steps = 20;
+    ctx.beginPath();
+    for (let s = 0; s <= steps; s++) {
+      const u = s / steps;
+      const x = cx - halfWAtSurface + u * 2 * halfWAtSurface;
+      const bump = Math.sin(u * Math.PI * 7 + 1.4) * 2.1 + Math.sin(u * Math.PI * 2.6) * 1.6;
+      const y = surfaceY + bump;
+      if (s === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.lineTo(cx + L.hopperBotHalfW, L.hopperBottom);
+    ctx.lineTo(cx - L.hopperBotHalfW, L.hopperBottom);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, surfaceY, 0, L.hopperBottom);
+    grad.addColorStop(0, '#d8e4ff');
+    grad.addColorStop(1, '#7186c4');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // A scatter of small highlight dots near the surface for ball-pile texture.
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    const dots = 16;
+    const insetHalfW = halfWAtSurface * 0.9;
+    for (let d = 0; d < dots; d++) {
+      const u = (d + 0.5) / dots;
+      const x = cx - insetHalfW + u * 2 * insetHalfW;
+      const bump = Math.sin(u * Math.PI * 7 + 1.4) * 2.1 + Math.sin(u * Math.PI * 2.6) * 1.6;
+      const y = surfaceY + bump - 1.5 + ((d * 37) % 5) * 0.6;
+      ctx.beginPath();
+      ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Bin-zone histogram: theoretical + actual counts drawn as background bars
+  // directly behind the landed-ball piles, sharing the same x columns and the
+  // same vertical span (binTop..floorY) — no separate floating chart to clip
+  // against the drop funnel or drift out of alignment with the real bins.
+  // Returns { maxCount, theory } so render() can size the landed-ball piles using
+  // the *exact* same count -> height scale as the bars drawn here. They used to
+  // be computed independently — the bars were proportional to the tallest bin,
+  // but the piles were stacked at literal ball-diameter height and capped once
+  // they physically reached the peg field, so two very different bin counts
+  // (say 26 vs 93) could render as visually identical pile heights while the
+  // bars behind them correctly showed very different heights. Same formula now,
+  // so the pile top always lines up with its own bar top.
+  function drawBinHistogram() {
+    const L = layout, R = L.R;
+    let maxCount = 1;
+    for (let k = 0; k <= R; k++) maxCount = Math.max(maxCount, binCounts[k] || 0);
+    const theory = state.showTheory ? theoreticalCounts(R, totalDropped) : null;
+    if (theory) for (let k = 0; k <= R; k++) maxCount = Math.max(maxCount, theory[k]);
+
+    const zoneH = L.floorY - L.binTop;
+
+    ctx.globalAlpha = 0.16;
+    for (let k = 0; k <= R; k++) {
+      const c = binCounts[k] || 0;
+      const h = Math.min((c / maxCount) * zoneH, zoneH);
+      const x = L.binX[k] - L.spacingX * 0.42;
+      const w = L.spacingX * 0.84;
+      ctx.fillStyle = '#6ea8fe';
+      ctx.fillRect(x, L.floorY - h, w, h);
+    }
+    ctx.globalAlpha = 1;
+
+    if (theory) {
+      ctx.strokeStyle = '#ffb454';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let k = 0; k <= R; k++) {
+        const h = Math.min((theory[k] / maxCount) * zoneH, zoneH);
+        const x = L.binX[k], y = L.floorY - h;
+        if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.fillStyle = '#ffb454';
+      for (let k = 0; k <= R; k++) {
+        const h = Math.min((theory[k] / maxCount) * zoneH, zoneH);
+        ctx.beginPath();
+        ctx.arc(L.binX[k], L.floorY - h, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    return maxCount;
+  }
+
+  function render() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#0b0e1c';
+    ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(pegLayer, 0, 0, W, H);
+    drawHopperPile();
+
+    if (state.showTrails) {
+      ctx.drawImage(trailCanvas, 0, 0, W, H);
+    }
+
+    const R = layout.R;
+    const rBall = state.ballRadius;
+    const maxCount = drawBinHistogram();
+
+    // Landed balls: the pile's TOP always sits at the same height as this bin's
+    // histogram bar (count/maxCount * zone height) — individual balls are drawn
+    // bottom-up at their real physical diameter until they run out of room or
+    // hit the render cap, then a translucent fill covers the rest of the way up
+    // to that same proportional top, with the exact count labeled alongside.
+    const zoneH = layout.floorY - layout.binTop;
+    const diameterEff = rBall * 2 * 0.92;
+    ctx.fillStyle = '#9fc1ff';
+    ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    for (let k = 0; k <= R; k++) {
+      const c = binCounts[k] || 0;
+      if (c === 0) continue;
+      const x = layout.binX[k];
+      const pileTopY = layout.floorY - Math.min((c / maxCount) * zoneH, zoneH);
+      const fullBallsThatFit = Math.max(0, Math.floor((layout.floorY - rBall - pileTopY) / diameterEff));
+      const visibleCount = Math.min(c, binRenderCap, fullBallsThatFit);
+      for (let s = 0; s < visibleCount; s++) {
+        const y = layout.floorY - rBall - s * diameterEff;
+        ctx.beginPath();
+        ctx.arc(x, y, rBall, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (c > visibleCount) {
+        const overflowBottomY = layout.floorY - rBall - visibleCount * diameterEff;
+        ctx.fillStyle = 'rgba(159,193,255,0.55)';
+        ctx.fillRect(x - layout.spacingX * 0.3, pileTopY, layout.spacingX * 0.6, overflowBottomY - pileTopY);
+        ctx.fillStyle = '#dce8ff';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(c.toLocaleString(), x, pileTopY - 3);
+        ctx.fillStyle = '#9fc1ff';
+      }
+    }
+
+    // Active falling balls — a soft gradient sphere rather than a flat disc
+    for (let a = 0; a < activeLen; a++) {
+      const i = activeIdx[a];
+      const grad = ctx.createRadialGradient(
+        bx[i] - rBall * 0.35, by[i] - rBall * 0.35, 0.3,
+        bx[i], by[i], rBall * 1.1
+      );
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.6, '#dbe6ff');
+      grad.addColorStop(1, '#93a8e6');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(bx[i], by[i], rBall, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (state.showTrails) {
+      trailCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      trailCtx.fillStyle = 'rgba(11,14,28,0.08)';
+      trailCtx.fillRect(0, 0, W, H);
+      trailCtx.fillStyle = 'rgba(110,168,254,0.5)';
+      for (let a = 0; a < activeLen; a++) {
+        const i = activeIdx[a];
+        trailCtx.beginPath();
+        trailCtx.arc(bx[i], by[i], Math.max(rBall * 0.6, 1), 0, Math.PI * 2);
+        trailCtx.fill();
+      }
+    }
+  }
+
+  // ---------- Main loop ----------
+  let lastTime = null;
+  let frameCount = 0, fpsAccum = 0, fpsTimer = 0;
+
+  function frame(t) {
+    requestAnimationFrame(frame);
+    if (lastTime === null) lastTime = t;
+    let rawDt = (t - lastTime) / 1000;
+    lastTime = t;
+    rawDt = Math.min(rawDt, 0.05); // clamp huge tab-switch gaps
+
+    // fps
+    frameCount++;
+    fpsAccum += rawDt;
+    fpsTimer += rawDt;
+    if (fpsTimer > 0.5) {
+      fpsEl.textContent = Math.round(frameCount / fpsAccum) + ' fps  ·  ' + activeLen + ' in flight';
+      frameCount = 0; fpsAccum = 0; fpsTimer = 0;
+    }
+
+    if (state.running && layout) {
+      const simDt = rawDt * state.speed;
+
+      // spawn scheduling
+      dropAccumulator += simDt;
+      // Cap the backlog so that turning the drop rate down (or a slow/throttled
+      // frame) after a period of fast dropping can't leave a multi-second debt of
+      // "owed" spawns that then bursts out all at once once framerate recovers.
+      if (dropAccumulator > 0.25) dropAccumulator = 0.25;
+      const interval = 1 / Math.max(state.dropRate, 0.001);
+      let guard = 0;
+      while (dropAccumulator >= interval && guard < 2000 && reservoirRemaining > 0) {
+        spawnBall();
+        dropAccumulator -= interval;
+        guard++;
+      }
+      if (reservoirRemaining <= 0) dropAccumulator = 0;
+
+      // fixed-step physics for stability regardless of speed multiplier
+      physAccumulator += simDt;
+      let steps = 0;
+      while (physAccumulator >= FIXED_DT && steps < 240) {
+        stepPhysics(FIXED_DT);
+        physAccumulator -= FIXED_DT;
+        steps++;
+      }
+
+      lastStatsUpdate += rawDt;
+      if (lastStatsUpdate > 0.2) {
+        updateStatsDOM();
+        lastStatsUpdate = 0;
+      }
+    }
+
+    if (layout) render();
+  }
+
+  // ---------- Resize handling ----------
+  function resize() {
+    const rect = boardWrap.getBoundingClientRect();
+    W = Math.max(rect.width, 300);
+    H = Math.max(rect.height, 300);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    trailCanvas.width = canvas.width;
+    trailCanvas.height = canvas.height;
+    rebuildBoard();
+  }
+  window.addEventListener('resize', resize);
+
+  // ---------- Init ----------
+  resize();
+  resetSim(true);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
