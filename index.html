@@ -629,12 +629,14 @@
   }
 
   // ---------- Physics ----------
-  // A high substep rate matters here: balls accelerate under gravity through many
-  // peg rows, and if a substep's displacement ever exceeds the ball+peg collision
-  // radius, a fast ball can tunnel straight through a peg without the overlap ever
-  // being detected. 1/400s keeps per-step displacement well under that radius even
-  // at the velocity clamp below.
-  const FIXED_DT = 1 / 400;
+  // Substep size is chosen ADAPTIVELY each frame (see computeSubstepDt): fine
+  // enough that a ball never moves more than about half a ball+peg collision
+  // radius per step — otherwise a fast ball could tunnel straight through a peg
+  // without the overlap being detected — but no finer than that. A fixed 1/400s
+  // step (the old value) was sized for the worst case and forced that many
+  // substeps even at gentle default settings; the adaptive step runs a fraction
+  // as many there, which is the single biggest physics speedup. Fast balls only
+  // ever occur in the peg region; the free-fall down the bins has no pegs.
   let physAccumulator = 0;
   let dropAccumulator = 0;
 
@@ -811,12 +813,23 @@
     return lgamma(n + 1) - lgamma(k + 1) - lgamma(n - k + 1);
   }
 
+  // Binomial(n=R, p=0.5) probabilities depend only on R, so cache them and just
+  // rescale by the running total — this keeps the per-frame histogram off the
+  // expensive lgamma/exp path entirely (it used to recompute them every frame).
+  let cachedBinomR = -1, cachedBinomProb = null;
+  function binomProbs(R) {
+    if (R === cachedBinomR) return cachedBinomProb;
+    const p = new Float64Array(R + 1);
+    for (let k = 0; k <= R; k++) p[k] = Math.exp(logChoose(R, k) - R * Math.LN2); // p=0.5
+    cachedBinomR = R;
+    cachedBinomProb = p;
+    return p;
+  }
+
   function theoreticalCounts(R, total) {
+    const p = binomProbs(R);
     const out = new Float64Array(R + 1);
-    for (let k = 0; k <= R; k++) {
-      const logP = logChoose(R, k) - R * Math.LN2; // p=0.5
-      out[k] = Math.exp(logP) * total;
-    }
+    for (let k = 0; k <= R; k++) out[k] = p[k] * total;
     return out;
   }
 
@@ -975,6 +988,37 @@
     return maxCount;
   }
 
+  // Pre-rendered ball sprite. Creating a radial gradient per ball per frame was
+  // by far the heaviest cost in the render loop; instead the glossy sphere is
+  // rasterized once to an offscreen canvas (at device-pixel resolution) and each
+  // ball is blitted with a single drawImage — hundreds of times cheaper, and
+  // rebuilt only when the ball size or device pixel ratio actually changes.
+  const ballSprite = document.createElement('canvas');
+  const ballSpriteCtx = ballSprite.getContext('2d');
+  let spriteR = -1, spriteDpr = -1, spriteDrawSize = 0;
+  function ensureBallSprite() {
+    const r = state.ballRadius;
+    if (r === spriteR && dpr === spriteDpr) return;
+    spriteR = r; spriteDpr = dpr;
+    const pad = Math.max(1.5, r * 0.35);
+    const cssSize = r * 2 + pad * 2;
+    spriteDrawSize = cssSize;
+    ballSprite.width = Math.ceil(cssSize * dpr);
+    ballSprite.height = Math.ceil(cssSize * dpr);
+    const g = ballSpriteCtx;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, cssSize, cssSize);
+    const c = cssSize / 2;
+    const grad = g.createRadialGradient(c - r * 0.35, c - r * 0.35, 0.3, c, c, r * 1.1);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.6, '#dbe6ff');
+    grad.addColorStop(1, '#93a8e6');
+    g.fillStyle = grad;
+    g.beginPath();
+    g.arc(c, c, r, 0, Math.PI * 2);
+    g.fill();
+  }
+
   function render() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#0b0e1c';
@@ -997,9 +1041,11 @@
     // to that same proportional top, with the exact count labeled alongside.
     const zoneH = layout.floorY - layout.binTop;
     const diameterEff = rBall * 2 * 0.92;
+
+    // Pass 1: every individually-drawn resting ball as ONE path, filled once —
+    // far cheaper than a beginPath/arc/fill per ball when piles are deep.
     ctx.fillStyle = '#9fc1ff';
-    ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-    ctx.textAlign = 'center';
+    ctx.beginPath();
     for (let k = 0; k <= R; k++) {
       const c = binCounts[k] || 0;
       if (c === 0) continue;
@@ -1009,35 +1055,38 @@
       const visibleCount = Math.min(c, binRenderCap, fullBallsThatFit);
       for (let s = 0; s < visibleCount; s++) {
         const y = layout.floorY - rBall - s * diameterEff;
-        ctx.beginPath();
+        ctx.moveTo(x + rBall, y);
         ctx.arc(x, y, rBall, 0, Math.PI * 2);
-        ctx.fill();
       }
+    }
+    ctx.fill();
+
+    // Pass 2: overflow fill + exact-count label for any bin whose pile is capped.
+    ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    for (let k = 0; k <= R; k++) {
+      const c = binCounts[k] || 0;
+      if (c === 0) continue;
+      const x = layout.binX[k];
+      const pileTopY = layout.floorY - Math.min((c / maxCount) * zoneH, zoneH);
+      const fullBallsThatFit = Math.max(0, Math.floor((layout.floorY - rBall - pileTopY) / diameterEff));
+      const visibleCount = Math.min(c, binRenderCap, fullBallsThatFit);
       if (c > visibleCount) {
         const overflowBottomY = layout.floorY - rBall - visibleCount * diameterEff;
         ctx.fillStyle = 'rgba(159,193,255,0.55)';
         ctx.fillRect(x - layout.spacingX * 0.3, pileTopY, layout.spacingX * 0.6, overflowBottomY - pileTopY);
         ctx.fillStyle = '#dce8ff';
-        ctx.textBaseline = 'bottom';
         ctx.fillText(c.toLocaleString(), x, pileTopY - 3);
-        ctx.fillStyle = '#9fc1ff';
       }
     }
 
-    // Active falling balls — a soft gradient sphere rather than a flat disc
+    // Active falling balls — blit the pre-rendered glossy sprite once each.
+    ensureBallSprite();
+    const spriteHalf = spriteDrawSize / 2;
     for (let a = 0; a < activeLen; a++) {
       const i = activeIdx[a];
-      const grad = ctx.createRadialGradient(
-        bx[i] - rBall * 0.35, by[i] - rBall * 0.35, 0.3,
-        bx[i], by[i], rBall * 1.1
-      );
-      grad.addColorStop(0, '#ffffff');
-      grad.addColorStop(0.6, '#dbe6ff');
-      grad.addColorStop(1, '#93a8e6');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(bx[i], by[i], rBall, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.drawImage(ballSprite, bx[i] - spriteHalf, by[i] - spriteHalf, spriteDrawSize, spriteDrawSize);
     }
 
     if (state.showTrails) {
@@ -1045,18 +1094,33 @@
       trailCtx.fillStyle = 'rgba(11,14,28,0.08)';
       trailCtx.fillRect(0, 0, W, H);
       trailCtx.fillStyle = 'rgba(110,168,254,0.5)';
+      const tr = Math.max(rBall * 0.6, 1);
+      trailCtx.beginPath();
       for (let a = 0; a < activeLen; a++) {
         const i = activeIdx[a];
-        trailCtx.beginPath();
-        trailCtx.arc(bx[i], by[i], Math.max(rBall * 0.6, 1), 0, Math.PI * 2);
-        trailCtx.fill();
+        trailCtx.moveTo(bx[i] + tr, by[i]);
+        trailCtx.arc(bx[i], by[i], tr, 0, Math.PI * 2);
       }
+      trailCtx.fill();
     }
   }
 
   // ---------- Main loop ----------
   let lastTime = null;
   let frameCount = 0, fpsAccum = 0, fpsTimer = 0;
+
+  // Adaptive physics substep: as coarse as possible while keeping per-step
+  // displacement safely below the ball+peg collision radius (see the physics
+  // note above). Reads live gravity/geometry so it stays correct as sliders move.
+  function computeSubstepDt() {
+    const L = layout;
+    const minDist = state.ballRadius + L.pegRadius;
+    // Bound on peak peg-region approach speed: a calibrated hop tops out around
+    // sqrt(2 g spacingY) * ~1.3, plus a little slack for jitter.
+    const vMax = Math.sqrt(2 * state.gravity * L.spacingY) * 1.3 + 70;
+    const safe = (minDist * 0.5) / vMax;
+    return Math.max(1 / 600, Math.min(1 / 120, safe));
+  }
 
   function frame(t) {
     requestAnimationFrame(frame);
@@ -1092,14 +1156,21 @@
       }
       if (reservoirRemaining <= 0) dropAccumulator = 0;
 
-      // fixed-step physics for stability regardless of speed multiplier
+      // Fixed-step physics (adaptive step size) for stability regardless of the
+      // speed multiplier or the display's refresh rate.
+      const substepDt = computeSubstepDt();
       physAccumulator += simDt;
       let steps = 0;
-      while (physAccumulator >= FIXED_DT && steps < 240) {
-        stepPhysics(FIXED_DT);
-        physAccumulator -= FIXED_DT;
+      while (physAccumulator >= substepDt && steps < 300) {
+        stepPhysics(substepDt);
+        physAccumulator -= substepDt;
         steps++;
       }
+      // If we hit the step cap (a very slow frame or extreme speed multiplier),
+      // drop the unconsumed remainder instead of carrying it forward — otherwise
+      // physics debt compounds frame over frame into a spiral of death. The sim
+      // simply runs a touch slow on that frame rather than freezing.
+      if (physAccumulator > substepDt) physAccumulator = substepDt;
 
       lastStatsUpdate += rawDt;
       if (lastStatsUpdate > 0.2) {
