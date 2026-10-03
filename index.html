@@ -2,8 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Galton Board Simulator</title>
+<meta name="description" content="An interactive Galton board: thousands of balls bounce through a peg lattice and pile up into a bell curve, compared live against the binomial distribution.">
+<meta name="theme-color" content="#0f1220">
+<meta property="og:title" content="Galton Board Simulator">
+<meta property="og:description" content="Watch randomness turn into a bell curve: a physics-driven Galton board with a live binomial fit.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f1220'/%3E%3Cg fill='%23ffb454'%3E%3Ccircle cx='16' cy='7' r='2'/%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Ccircle cx='20' cy='12' r='2'/%3E%3Ccircle cx='8' cy='17' r='2'/%3E%3Ccircle cx='16' cy='17' r='2'/%3E%3Ccircle cx='24' cy='17' r='2'/%3E%3C/g%3E%3Cg fill='%236ea8fe'%3E%3Crect x='6' y='25' width='4' height='3'/%3E%3Crect x='11' y='22' width='4' height='6'/%3E%3Crect x='17' y='21' width='4' height='7'/%3E%3Crect x='22' y='24' width='4' height='4'/%3E%3C/g%3E%3C/svg%3E">
 <style>
   :root{
     --bg: #0f1220;
@@ -11,9 +17,11 @@
     --panel-2: #1e2338;
     --accent: #6ea8fe;
     --accent-2: #ffb454;
+    --accent-3: #57d38c;
     --text: #e8ebf5;
     --muted: #8a90ab;
     --good: #57d38c;
+    --warn: #ffb454;
     --bad: #ff6b6b;
     --border: #2a2f4a;
   }
@@ -28,14 +36,12 @@
   #app {
     display: flex;
     height: 100vh;
-    width: 100vw;
+    height: 100dvh;
+    width: 100%;
   }
   #board-wrap {
     flex: 1 1 auto;
     position: relative;
-    display: flex;
-    align-items: stretch;
-    justify-content: stretch;
     min-width: 0;
   }
   #board {
@@ -44,86 +50,99 @@
     display: block;
   }
   #sidebar {
-    width: 320px;
-    flex: 0 0 320px;
+    width: 330px;
+    flex: 0 0 330px;
     background: linear-gradient(180deg, var(--panel), var(--panel-2));
     border-left: 1px solid var(--border);
-    padding: 16px 16px 12px;
+    padding: 18px 16px 16px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 14px;
   }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
+  .brand svg { flex: 0 0 auto; }
   h1 {
-    font-size: 15px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin: 0 0 2px;
-    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: 0.01em;
+    margin: 0;
+    font-weight: 750;
   }
   .subtitle {
-    font-size: 11px;
+    font-size: 11.5px;
     color: var(--muted);
-    margin: 0 0 6px;
+    margin: 2px 0 0;
   }
   .card {
     background: rgba(255,255,255,0.03);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 14px;
+    border-radius: 12px;
+    padding: 12px 14px 14px;
   }
   .card h2 {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--muted);
-    margin: 0 0 10px;
+    margin: 0 0 12px;
     font-weight: 700;
   }
-  .row {
+  .ctl { margin-bottom: 12px; }
+  .ctl:last-child { margin-bottom: 0; }
+  .ctl-head {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 10px;
+    margin-bottom: 3px;
   }
-  .row:last-child { margin-bottom: 0; }
-  .row label {
-    font-size: 12.5px;
-    color: var(--text);
-    flex: 1 1 auto;
-  }
-  .row .val {
+  .ctl-head label { font-size: 12.5px; }
+  .ctl-head .val {
     font-variant-numeric: tabular-nums;
     font-size: 12px;
+    font-weight: 600;
     color: var(--accent);
-    min-width: 42px;
-    text-align: right;
+  }
+  .ctl-note {
+    font-size: 10.5px;
+    color: var(--muted);
+    margin-top: 1px;
   }
   input[type="range"] {
-    width: 130px;
+    width: 100%;
+    margin: 0;
     accent-color: var(--accent);
+    cursor: pointer;
   }
   .btn-row {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
   }
+  .btn-row + .btn-row { margin-top: 8px; }
   button {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     background: var(--accent);
     color: #0b0e1c;
     border: none;
     border-radius: 8px;
     padding: 9px 10px;
+    font: inherit;
     font-weight: 700;
     font-size: 12.5px;
     cursor: pointer;
-    transition: transform 0.05s ease, filter 0.15s ease;
+    transition: transform 0.05s ease, filter 0.15s ease, background 0.15s ease;
   }
-  button:hover { filter: brightness(1.08); }
+  button:hover { filter: brightness(1.1); }
   button:active { transform: scale(0.97); }
+  button:focus-visible, input:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  button.paused { background: var(--good); }
   button.secondary {
     background: var(--panel-2);
     color: var(--text);
@@ -133,13 +152,48 @@
     background: var(--bad);
     color: #1a0d0d;
   }
-  label.checkbox {
+  button.trace {
+    background: linear-gradient(90deg, #ff7eb6, #ffb454);
+  }
+
+  /* Display toggles rendered as small switches */
+  .toggles { display: grid; gap: 9px; }
+  label.switch {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     font-size: 12.5px;
     cursor: pointer;
+    user-select: none;
   }
+  label.switch input {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: 0 0 auto;
+    width: 30px; height: 17px;
+    margin: 0;
+    border-radius: 999px;
+    background: var(--border);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  label.switch input::after {
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    background: #c9cfe6;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  label.switch input:checked { background: var(--accent); }
+  label.switch input:checked::after { transform: translateX(13px); background: #fff; }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: 0 0 auto; }
+  .swatch.line { height: 3px; border-radius: 2px; width: 14px; }
+  .swatch.dash { height: 0; width: 14px; border-top: 2px dashed var(--accent-3); border-radius: 0; }
+  label.switch .swatch { margin-left: auto; }
+
   .stat-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -162,139 +216,307 @@
     font-variant-numeric: tabular-nums;
     margin-top: 2px;
   }
-  .legend {
-    display: flex;
-    gap: 14px;
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 6px;
-    flex-wrap: wrap;
+  table.compare {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
   }
-  .legend span { display: flex; align-items: center; gap: 5px; }
-  .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
-  #hint {
+  table.compare th {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: right;
+    padding: 0 0 4px;
+  }
+  table.compare th:first-child, table.compare td:first-child { text-align: left; color: var(--muted); }
+  table.compare td { text-align: right; padding: 4px 0; border-top: 1px solid var(--border); font-weight: 600; }
+  table.compare td.actual { color: var(--accent); }
+  table.compare td.theory { color: var(--accent-2); }
+  .fit {
+    margin-top: 10px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    padding: 9px 10px;
+  }
+  .fit-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .fit .label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .fit .nums {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    margin-top: 4px;
+    color: var(--text);
+  }
+  .pill {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--border);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .pill.good { background: rgba(87,211,140,0.16); color: var(--good); }
+  .pill.warn { background: rgba(255,180,84,0.16); color: var(--warn); }
+  .pill.bad  { background: rgba(255,107,107,0.16); color: var(--bad); }
+
+  details.about {
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  details.about summary {
+    cursor: pointer;
+    color: var(--text);
+    font-weight: 600;
+    font-size: 12.5px;
+  }
+  details.about p { margin: 8px 0 0; }
+  details.about b { color: var(--text); font-weight: 600; }
+  .keys {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 5px 10px;
+    font-size: 11.5px;
+    color: var(--muted);
+    align-items: center;
+  }
+  kbd {
+    font: 600 10.5px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 3px 6px;
+    justify-self: start;
+  }
+  footer {
     font-size: 10.5px;
     color: var(--muted);
-    line-height: 1.5;
+    text-align: center;
+    margin-top: auto;
+    padding-top: 2px;
   }
+  footer a { color: var(--muted); }
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-  #fps {
+
+  /* Overlays on top of the board canvas */
+  .overlay {
     position: absolute;
-    top: 8px;
-    left: 10px;
-    font-size: 10.5px;
+    font-size: 11px;
     color: var(--muted);
-    font-variant-numeric: tabular-nums;
-    background: rgba(10,12,22,0.5);
-    padding: 3px 7px;
-    border-radius: 6px;
+    background: rgba(10,12,22,0.62);
+    border: 1px solid rgba(42,47,74,0.7);
+    padding: 4px 8px;
+    border-radius: 7px;
     pointer-events: none;
+    font-variant-numeric: tabular-nums;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  #fps { top: 10px; left: 10px; }
+  #traceInfo {
+    top: 10px; right: 10px;
+    max-width: min(360px, calc(100% - 20px));
+    color: var(--text);
+    line-height: 1.5;
+    display: none;
+  }
+  #traceInfo.show { display: block; }
+  #traceInfo .steps { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.08em; word-break: break-all; }
+  #traceInfo .L { color: #7fb2ff; }
+  #traceInfo .R { color: #ff9ecb; }
+  #emptyNote {
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text);
+    white-space: nowrap;
+    display: none;
+  }
+  #emptyNote.show { display: block; }
+
+  /* Phones / narrow windows: board on top, controls scroll underneath */
+  @media (max-width: 820px) {
+    html, body { height: auto; overflow: auto; }
+    #app { flex-direction: column; height: auto; }
+    #board-wrap { flex: none; height: 74vh; height: 74svh; min-height: 420px; }
+    #sidebar {
+      width: 100%;
+      flex: none;
+      border-left: none;
+      border-top: 1px solid var(--border);
+      overflow: visible;
+      padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    }
+    .keys-card { display: none; }
+    #fps { display: none; }
   }
 </style>
 </head>
 <body>
 <div id="app">
-  <div id="board-wrap">
-    <canvas id="board"></canvas>
-    <div id="fps">-- fps</div>
-  </div>
+  <main id="board-wrap">
+    <canvas id="board" role="img" aria-label="Galton board: balls fall through a triangle of pegs into bins that form a bell-shaped histogram"></canvas>
+    <div id="fps" class="overlay">-- fps</div>
+    <div id="traceInfo" class="overlay" aria-live="polite"></div>
+    <div id="emptyNote" class="overlay">Hopper empty — <b>F</b> refill · <b>R</b> reset</div>
+  </main>
 
-  <div id="sidebar">
-    <div>
-      <h1>Galton Board</h1>
-      <p class="subtitle">Real physics · live binomial comparison</p>
+  <aside id="sidebar">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="8" fill="#1e2338" stroke="#2a2f4a"/>
+        <g fill="#ffb454"><circle cx="16" cy="7" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="20" cy="12" r="1.8"/><circle cx="8" cy="17" r="1.8"/><circle cx="16" cy="17" r="1.8"/><circle cx="24" cy="17" r="1.8"/></g>
+        <g fill="#6ea8fe"><rect x="6" y="25" width="4" height="3" rx="1"/><rect x="11" y="22" width="4" height="6" rx="1"/><rect x="17" y="21" width="4" height="7" rx="1"/><rect x="22" y="24" width="4" height="4" rx="1"/></g>
+      </svg>
+      <div>
+        <h1>Galton Board</h1>
+        <p class="subtitle">Gravity, pegs &amp; a live binomial fit</p>
+      </div>
     </div>
 
-    <div class="card">
+    <section class="card">
       <h2>Run</h2>
       <div class="btn-row">
-        <button id="btnPlayPause">Pause</button>
+        <button id="btnPlayPause" aria-pressed="false">Pause</button>
         <button id="btnReset" class="danger">Reset</button>
       </div>
-      <div class="btn-row" style="margin-top:8px;">
+      <div class="btn-row">
         <button id="btnBurst100" class="secondary">+100 balls</button>
         <button id="btnBurst1000" class="secondary">+1000 balls</button>
       </div>
-    </div>
+      <div class="btn-row">
+        <button id="btnTrace" class="trace" title="Drop one highlighted ball and record every left/right bounce">Trace a ball</button>
+        <button id="btnRefill" class="secondary" title="Top the hopper back up without clearing the bins">Refill hopper</button>
+      </div>
+    </section>
 
-    <div class="card">
-      <h2>Controls</h2>
-      <div class="row">
-        <label for="rows">Peg rows</label>
+    <section class="card">
+      <h2>Board</h2>
+      <div class="ctl">
+        <div class="ctl-head"><label for="rows">Peg rows</label><span class="val" id="rowsVal"></span></div>
         <input type="range" id="rows" min="4" max="24" step="1" value="14">
-        <span class="val" id="rowsVal">14</span>
       </div>
-      <div class="row">
-        <label for="rate">Drop rate (balls/s)</label>
+      <div class="ctl">
+        <div class="ctl-head"><label for="bias">Tilt · P(bounce right)</label><span class="val" id="biasVal"></span></div>
+        <input type="range" id="bias" min="0.1" max="0.9" step="0.05" value="0.5">
+        <div class="ctl-note">Changing rows or tilt clears the bins.</div>
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><label for="rate">Drop rate</label><span class="val" id="rateVal"></span></div>
         <input type="range" id="rate" min="1" max="300" step="1" value="30">
-        <span class="val" id="rateVal">30</span>
       </div>
-      <div class="row">
-        <label for="speed">Sim speed</label>
-        <input type="range" id="speed" min="0.25" max="6" step="0.25" value="1">
-        <span class="val" id="speedVal">1.0x</span>
+      <div class="ctl">
+        <div class="ctl-head"><label for="reservoir">Hopper capacity</label><span class="val" id="reservoirVal"></span></div>
+        <input type="range" id="reservoir" min="50" max="5000" step="50" value="500">
       </div>
-      <div class="row">
-        <label for="gravity">Gravity</label>
-        <input type="range" id="gravity" min="200" max="3000" step="50" value="1200">
-        <span class="val" id="gravityVal">1200</span>
-      </div>
-      <div class="row">
-        <label for="restitution">Bounciness</label>
-        <input type="range" id="restitution" min="0.1" max="0.75" step="0.05" value="0.35">
-        <span class="val" id="restitutionVal">0.35</span>
-      </div>
-      <div class="row">
-        <label for="jitter">Peg randomness</label>
-        <input type="range" id="jitter" min="0" max="60" step="2" value="18">
-        <span class="val" id="jitterVal">18</span>
-      </div>
-      <div class="row">
-        <label for="ballSize">Ball size</label>
-        <input type="range" id="ballSize" min="2" max="9" step="0.5" value="4">
-        <span class="val" id="ballSizeVal">4</span>
-      </div>
-      <div class="row">
-        <label for="reservoir">Hopper capacity</label>
-        <input type="range" id="reservoir" min="50" max="3000" step="50" value="500">
-        <span class="val" id="reservoirVal">500</span>
-      </div>
-      <div class="row" style="margin-top:2px;">
-        <label class="checkbox"><input type="checkbox" id="showTheory" checked> Show theoretical curve</label>
-      </div>
-      <div class="row">
-        <label class="checkbox"><input type="checkbox" id="showTrails"> Show ball trails</label>
-      </div>
-    </div>
+    </section>
 
-    <div class="card">
+    <section class="card">
+      <h2>Physics</h2>
+      <div class="ctl">
+        <div class="ctl-head"><label for="speed">Sim speed</label><span class="val" id="speedVal"></span></div>
+        <input type="range" id="speed" min="0.25" max="6" step="0.25" value="1">
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><label for="gravity">Gravity</label><span class="val" id="gravityVal"></span></div>
+        <input type="range" id="gravity" min="200" max="3000" step="50" value="1200">
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><label for="restitution">Bounciness</label><span class="val" id="restitutionVal"></span></div>
+        <input type="range" id="restitution" min="0.1" max="0.75" step="0.05" value="0.35">
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><label for="scatter">Scatter</label><span class="val" id="scatterVal"></span></div>
+        <input type="range" id="scatter" min="0" max="1" step="0.05" value="0.5">
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><label for="ballSize">Ball size</label><span class="val" id="ballSizeVal"></span></div>
+        <input type="range" id="ballSize" min="2" max="9" step="0.5" value="4">
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Display</h2>
+      <div class="toggles">
+        <label class="switch"><input type="checkbox" id="showTheory" checked> Binomial curve <span class="swatch line" style="background:var(--accent-2)"></span></label>
+        <label class="switch"><input type="checkbox" id="showNormal"> Normal approximation <span class="swatch dash"></span></label>
+        <label class="switch"><input type="checkbox" id="showGlow" checked> Peg strike glow</label>
+        <label class="switch"><input type="checkbox" id="rainbow"> Rainbow balls</label>
+        <label class="switch"><input type="checkbox" id="showTrails"> Ball trails</label>
+      </div>
+    </section>
+
+    <section class="card">
       <h2>Live Stats</h2>
       <div class="stat-grid">
         <div class="stat"><div class="label">Dropped</div><div class="value" id="statTotal">0</div></div>
-        <div class="stat"><div class="label">In hopper</div><div class="value" id="statReservoir">0</div></div>
+        <div class="stat"><div class="label">Landed</div><div class="value" id="statLanded">0</div></div>
         <div class="stat"><div class="label">In flight</div><div class="value" id="statFlight">0</div></div>
-        <div class="stat"><div class="label">Mean (actual)</div><div class="value" id="statMeanA">–</div></div>
-        <div class="stat"><div class="label">Mean (theory)</div><div class="value" id="statMeanT">–</div></div>
-        <div class="stat"><div class="label">Std dev (actual)</div><div class="value" id="statStdA">–</div></div>
-        <div class="stat"><div class="label">Std dev (theory)</div><div class="value" id="statStdT">–</div></div>
-        <div class="stat" style="grid-column: 1 / -1;"><div class="label">Chi-squared fit (lower = closer)</div><div class="value" id="statChi">–</div></div>
+        <div class="stat"><div class="label">In hopper</div><div class="value" id="statReservoir">0</div></div>
       </div>
-      <div class="legend">
-        <span><span class="swatch" style="background:var(--accent)"></span>Actual counts</span>
-        <span><span class="swatch" style="background:var(--accent-2)"></span>Theoretical (binomial)</span>
+      <table class="compare">
+        <thead><tr><th>Bin k</th><th>Actual</th><th>Theory</th></tr></thead>
+        <tbody>
+          <tr><td>Mean</td><td class="actual" id="statMeanA">–</td><td class="theory" id="statMeanT">–</td></tr>
+          <tr><td>Std dev</td><td class="actual" id="statStdA">–</td><td class="theory" id="statStdT">–</td></tr>
+        </tbody>
+      </table>
+      <div class="fit">
+        <div class="fit-top">
+          <span class="label">χ² goodness of fit</span>
+          <span class="pill" id="statVerdict">waiting…</span>
+        </div>
+        <div class="nums" id="statChi">Needs a few dozen landed balls.</div>
       </div>
-    </div>
+    </section>
 
-    <div id="hint">
-      Balls drain from the hopper at top, then bounce through a triangular peg
-      lattice via real gravity + collisions. Tiny randomness on each peg strike
-      (adjustable) models real-world imperfections — this is what produces the
-      binomial spread, exactly as on a physical board. Bin counts are compared
-      live against the theoretical Binomial(n = rows, p = 0.5) distribution.
-      The hopper holds a finite supply — once it drains, press Reset to refill.
-    </div>
-  </div>
+    <section class="card">
+      <details class="about">
+        <summary>How it works</summary>
+        <p>Balls drain from the hopper and bounce down a triangular lattice under
+        real gravity. Every peg strike is a <b>coin flip</b>: the ball hops one
+        half-spacing left or right, landing on a peg in the next row. Bounciness
+        and scatter change how the arcs look, never the odds.</p>
+        <p>After <b>n</b> rows a ball's bin <b>k</b> is simply how many times it went
+        right, so bin counts follow <b>Binomial(n, p)</b> — the orange curve.
+        With enough rows it approaches a <b>normal</b> curve with mean np and
+        variance np(1−p): the central limit theorem, built out of pegs.</p>
+        <p>The χ² test pools sparse tail bins and reports a p-value. For a fair
+        simulation p-values are uniformly spread, so expect an occasional
+        "borderline" — that's randomness too.</p>
+      </details>
+    </section>
+
+    <section class="card keys-card">
+      <h2>Shortcuts</h2>
+      <div class="keys">
+        <kbd>Space</kbd><span>Play / pause</span>
+        <kbd>R</kbd><span>Reset &amp; refill</span>
+        <kbd>F</kbd><span>Refill hopper</span>
+        <kbd>T</kbd><span>Trace a ball</span>
+        <kbd>1</kbd><span>+100 balls</span>
+        <kbd>2</kbd><span>+1000 balls</span>
+      </div>
+    </section>
+
+    <footer>Named after Sir Francis Galton's 1873 "quincunx".</footer>
+  </aside>
 </div>
 
 <script>
@@ -306,6 +528,8 @@
   const ctx = canvas.getContext('2d', { alpha: false });
   const boardWrap = document.getElementById('board-wrap');
   const fpsEl = document.getElementById('fps');
+  const traceInfoEl = document.getElementById('traceInfo');
+  const emptyNoteEl = document.getElementById('emptyNote');
 
   let dpr = Math.min(window.devicePixelRatio || 1, 2);
   let W = 0, H = 0; // CSS pixel dimensions
@@ -315,156 +539,181 @@
   const pegCtx = pegLayer.getContext('2d');
 
   // ---------- Controls ----------
-  const els = {
-    rows: document.getElementById('rows'),
-    rate: document.getElementById('rate'),
-    speed: document.getElementById('speed'),
-    gravity: document.getElementById('gravity'),
-    restitution: document.getElementById('restitution'),
-    jitter: document.getElementById('jitter'),
-    ballSize: document.getElementById('ballSize'),
-    reservoir: document.getElementById('reservoir'),
-    showTheory: document.getElementById('showTheory'),
-    showTrails: document.getElementById('showTrails'),
+  // One declarative table per slider: which state key it drives, how to parse
+  // and display it, and what (if anything) has to be rebuilt when it moves.
+  const state = { running: true };
+  const SLIDERS = {
+    rows:        { key: 'rows',              parse: v => parseInt(v, 10), fmt: v => v,
+                   onChange: () => { rebuildBoard(); resetSim(); } },
+    bias:        { key: 'bias',              parse: parseFloat, fmt: v => v.toFixed(2),
+                   onChange: () => resetSim() },
+    rate:        { key: 'dropRate',          parse: parseFloat, fmt: v => v + ' /s' },
+    reservoir:   { key: 'reservoirCapacity', parse: v => parseInt(v, 10), fmt: v => v.toLocaleString(),
+                   onChange: (oldV, newV) => {
+                     // Grow or shrink what's left by the same amount instead of silently refilling.
+                     reservoirRemaining = Math.max(0, Math.min(newV, reservoirRemaining + (newV - oldV)));
+                     updateStatsDOM();
+                   } },
+    speed:       { key: 'speed',             parse: parseFloat, fmt: v => v.toFixed(2) + '×' },
+    gravity:     { key: 'gravity',           parse: parseFloat, fmt: v => v },
+    restitution: { key: 'restitution',       parse: parseFloat, fmt: v => v.toFixed(2) },
+    scatter:     { key: 'scatter',           parse: parseFloat, fmt: v => Math.round(v * 100) + '%' },
+    ballSize:    { key: 'ballRadius',        parse: parseFloat, fmt: v => v.toFixed(1),
+                   onChange: () => rebuildBoard() },
   };
-  const vals = {
-    rows: document.getElementById('rowsVal'),
-    rate: document.getElementById('rateVal'),
-    speed: document.getElementById('speedVal'),
-    gravity: document.getElementById('gravityVal'),
-    restitution: document.getElementById('restitutionVal'),
-    jitter: document.getElementById('jitterVal'),
-    ballSize: document.getElementById('ballSizeVal'),
-    reservoir: document.getElementById('reservoirVal'),
-  };
-
-  const state = {
-    rows: parseInt(els.rows.value, 10),
-    dropRate: parseFloat(els.rate.value),
-    speed: parseFloat(els.speed.value),
-    gravity: parseFloat(els.gravity.value),
-    restitution: parseFloat(els.restitution.value),
-    jitter: parseFloat(els.jitter.value),
-    ballRadius: parseFloat(els.ballSize.value),
-    reservoirCapacity: parseInt(els.reservoir.value, 10),
-    showTheory: els.showTheory.checked,
-    showTrails: els.showTrails.checked,
-    running: true,
-  };
+  for (const id in SLIDERS) {
+    const s = SLIDERS[id];
+    const input = document.getElementById(id);
+    const out = document.getElementById(id + 'Val');
+    state[s.key] = s.parse(input.value);
+    out.textContent = s.fmt(state[s.key]);
+    input.addEventListener('input', () => {
+      const old = state[s.key];
+      state[s.key] = s.parse(input.value);
+      out.textContent = s.fmt(state[s.key]);
+      if (s.onChange) s.onChange(old, state[s.key]);
+    });
+  }
+  for (const id of ['showTheory', 'showNormal', 'showGlow', 'rainbow', 'showTrails']) {
+    const el = document.getElementById(id);
+    state[id] = el.checked;
+    el.addEventListener('change', () => {
+      state[id] = el.checked;
+      if (id === 'showTrails') clearTrails();
+    });
+  }
   let reservoirRemaining = state.reservoirCapacity;
 
-  function syncLabel(key, fmt) {
-    vals[key].textContent = fmt ? fmt(state[key]) : state[key];
-  }
-  syncLabel('rows');
-  syncLabel('rate');
-  syncLabel('speed', v => v.toFixed(2) + 'x');
-  syncLabel('gravity');
-  syncLabel('restitution', v => v.toFixed(2));
-  syncLabel('jitter');
-  vals.ballSize.textContent = state.ballRadius.toFixed(1);
-  vals.reservoir.textContent = state.reservoirCapacity;
-
-  els.rows.addEventListener('input', () => {
-    state.rows = parseInt(els.rows.value, 10);
-    syncLabel('rows');
-    rebuildBoard();
-    resetSim(false);
-  });
-  els.rate.addEventListener('input', () => { state.dropRate = parseFloat(els.rate.value); syncLabel('rate'); });
-  els.speed.addEventListener('input', () => { state.speed = parseFloat(els.speed.value); syncLabel('speed', v => v.toFixed(2) + 'x'); });
-  els.gravity.addEventListener('input', () => { state.gravity = parseFloat(els.gravity.value); syncLabel('gravity'); });
-  els.restitution.addEventListener('input', () => { state.restitution = parseFloat(els.restitution.value); syncLabel('restitution', v => v.toFixed(2)); });
-  els.jitter.addEventListener('input', () => { state.jitter = parseFloat(els.jitter.value); syncLabel('jitter'); });
-  els.ballSize.addEventListener('input', () => {
-    state.ballRadius = parseFloat(els.ballSize.value);
-    vals.ballSize.textContent = state.ballRadius.toFixed(1);
-    rebuildBoard();
-  });
-  els.reservoir.addEventListener('input', () => {
-    state.reservoirCapacity = parseInt(els.reservoir.value, 10);
-    vals.reservoir.textContent = state.reservoirCapacity;
-    reservoirRemaining = state.reservoirCapacity;
-    updateStatsDOM();
-  });
-  els.showTheory.addEventListener('change', () => { state.showTheory = els.showTheory.checked; });
-  els.showTrails.addEventListener('change', () => { state.showTrails = els.showTrails.checked; if(!state.showTrails) trailCanvasNeedsClear = true; });
-
   const btnPlayPause = document.getElementById('btnPlayPause');
-  btnPlayPause.addEventListener('click', () => {
+  function togglePlay() {
     state.running = !state.running;
     btnPlayPause.textContent = state.running ? 'Pause' : 'Play';
-  });
-  document.getElementById('btnReset').addEventListener('click', () => resetSim(true));
+    btnPlayPause.classList.toggle('paused', !state.running);
+    btnPlayPause.setAttribute('aria-pressed', String(!state.running));
+  }
+  function refill() {
+    reservoirRemaining = state.reservoirCapacity;
+    updateStatsDOM();
+  }
+  btnPlayPause.addEventListener('click', togglePlay);
+  document.getElementById('btnReset').addEventListener('click', () => resetSim());
   document.getElementById('btnBurst100').addEventListener('click', () => burst(100));
   document.getElementById('btnBurst1000').addEventListener('click', () => burst(1000));
+  document.getElementById('btnTrace').addEventListener('click', () => traceBall());
+  document.getElementById('btnRefill').addEventListener('click', refill);
+
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    // Let Space/Enter keep their native meaning on focused buttons, checkboxes
+    // and the "How it works" disclosure.
+    if ((e.key === ' ' || e.key === 'Enter') &&
+        (t.tagName === 'BUTTON' || t.tagName === 'SUMMARY' || (t.tagName === 'INPUT' && t.type === 'checkbox'))) return;
+    switch (e.key.toLowerCase()) {
+      case ' ': togglePlay(); break;
+      case 'r': resetSim(); break;
+      case 'f': refill(); break;
+      case 't': traceBall(); break;
+      case '1': burst(100); break;
+      case '2': burst(1000); break;
+      default: return;
+    }
+    e.preventDefault();
+  });
 
   // ---------- Geometry / board layout ----------
-  let layout = null; // { pegRows: [{y, xs:[...]}], binX:[...], topMargin, spacingX, spacingY, floorY, binTop, centerX }
+  let layout = null;
+  let pegGlow = new Float32Array(0); // per-peg strike glow, 1 = just hit, decays to 0
 
   function rebuildBoard() {
     const R = state.rows;
+    const old = layout;
     // marginTop leaves room above the peg triangle for the hopper/reservoir —
-    // the visual "supply" of balls waiting to drop — plus its drain chute.
-    const marginTop = 132;
-    const marginBottom = 130;
+    // the visual "supply" of balls waiting to drop — plus its drain chute. Both
+    // margins shrink a little on short (phone) boards so the pegs keep room.
+    const marginTop = Math.round(Math.min(132, Math.max(88, H * 0.15)));
+    const marginBottom = Math.round(Math.min(130, Math.max(96, H * 0.16)));
     const usableH = Math.max(H - marginTop - marginBottom, 100);
     const spacingY = usableH / (R + 1);
     const spacingX = Math.min(spacingY * 1.15, (W * 0.92) / (R + 2));
     const centerX = W / 2;
 
+    // Ball and peg radii are capped relative to the peg spacing: a big ball on a
+    // dense 24-row board (or any board on a small phone screen) would otherwise
+    // be wider than the gap between two pegs and jam the lattice.
+    const ballR = Math.max(1.5, Math.min(state.ballRadius, spacingX * 0.2));
+    const pegRadius = Math.max(1.5, Math.min(Math.max(2.2, ballR * 0.85), spacingX * 0.17));
+
     const pegRows = [];
     for (let r = 0; r < R; r++) {
       const y = marginTop + (r + 1) * spacingY;
-      const count = r + 1;
-      const xs = new Float64Array(count);
-      for (let j = 0; j < count; j++) {
-        xs[j] = centerX + (j - r / 2) * spacingX;
-      }
+      const xs = new Float64Array(r + 1);
+      for (let j = 0; j <= r; j++) xs[j] = centerX + (j - r / 2) * spacingX;
       pegRows.push({ y, xs });
     }
 
     const binCount = R + 1;
     const binX = new Float64Array(binCount);
-    for (let k = 0; k < binCount; k++) {
-      binX[k] = centerX + (k - R / 2) * spacingX;
-    }
+    for (let k = 0; k < binCount; k++) binX[k] = centerX + (k - R / 2) * spacingX;
 
     // Gap between the last peg row and the bins: clamped to a sane absolute pixel
     // range rather than scaled by spacingY. A raw spacingY-based gap (as if there
     // were one more full row of falling room) looks fine at 14+ rows but leaves a
     // huge dead void at low row counts, where spacingY balloons to fill the same
     // usable height with far fewer rows.
-    const lastRowGap = Math.min(Math.max(spacingY * 0.55, 36), 64);
+    const lastRowGap = Math.min(Math.max(spacingY * 0.55, 30), 64);
     const binTop = marginTop + R * spacingY + lastRowGap;
-    const floorY = H - 34;
+    const floorY = H - 30;
 
     // Hopper (reservoir) geometry: a funnel that narrows from a wide basin down to
     // a slim spout, sitting directly above the peg triangle. Balls visually drain
     // out of the spout and fall a short "chute" before entering the peg field.
     const hopperBottom = marginTop - 26;
     const hopperTop = 16;
-    const hopperTopHalfW = Math.min(spacingX * (R / 2 + 1.6) + 20, W * 0.44);
-    const hopperBotHalfW = Math.max(spacingX * 0.3, layout ? layout.pegRadius * 1.8 : 8);
+    const hopperTopHalfW = Math.min(spacingX * (R / 3 + 2) + 24, W * 0.34);
+    const hopperBotHalfW = Math.max(spacingX * 0.3, pegRadius * 1.8);
     const spoutY = marginTop - 10;
 
     layout = {
       R, pegRows, binX, binCount,
       marginTop, spacingX, spacingY,
       centerX, binTop, floorY,
-      pegRadius: Math.max(2.2, state.ballRadius * 0.85),
+      ballR, pegRadius,
       wallLeft: binX[0] - spacingX / 2,
       wallRight: binX[binCount - 1] + spacingX / 2,
       hopperTop, hopperBottom, hopperTopHalfW, hopperBotHalfW, spoutY,
-      // Shared cap on how tall a bin's landed-ball pile may grow, in both the
-      // physics rest position and the render — keeps a heavily favored bin's
-      // pile from ever climbing high enough to clip into the peg field.
-      maxStackHeight: Math.max((floorY - binTop) - state.ballRadius * 3, state.ballRadius * 2),
+      binColors: [], binColorsSoft: [],
     };
+    for (let k = 0; k < binCount; k++) {
+      const hue = rainbowHue(k / R);
+      layout.binColors.push(`hsl(${hue},85%,72%)`);
+      layout.binColorsSoft.push(`hsla(${hue},85%,72%,0.55)`);
+    }
 
+    const pegCount = R * (R + 1) / 2;
+    if (pegGlow.length !== pegCount) pegGlow = new Float32Array(pegCount);
+
+    // A resize with the same row count keeps the simulation going: map any balls
+    // in flight onto the new geometry so they carry on from the same relative spot.
+    if (old && old.R === R) {
+      const sx = spacingX / old.spacingX, sy = spacingY / old.spacingY;
+      for (let a = 0; a < activeLen; a++) {
+        const i = activeIdx[a];
+        bx[i] = centerX + (bx[i] - old.centerX) * sx;
+        by[i] = marginTop + (by[i] - old.marginTop) * sy;
+        bAimY[i] = marginTop + (bAimY[i] - old.marginTop) * sy;
+        bvx[i] *= sx; bvy[i] *= sy;
+      }
+      tracePts.length = 0;
+    }
+
+    emptyNoteEl.style.top = ((hopperTop + hopperBottom) / 2) + 'px';
     drawPegLayer();
     resizeHistogramCache();
   }
+
+  // Violet (left bins) through green to red (right bins).
+  function rainbowHue(t) { return Math.round(275 - 275 * Math.max(0, Math.min(1, t))); }
 
   function drawPegLayer() {
     pegLayer.width = canvas.width;
@@ -503,9 +752,9 @@
     pegCtx.lineWidth = 1.5;
     pegCtx.beginPath();
     pegCtx.moveTo(cx - L.hopperBotHalfW * 0.7, L.hopperBottom);
-    pegCtx.lineTo(cx - L.pegRadius * 1.4, L.spoutY + 6);
+    pegCtx.lineTo(cx - L.pegRadius * 1.4 - L.ballR, L.spoutY + 6);
     pegCtx.moveTo(cx + L.hopperBotHalfW * 0.7, L.hopperBottom);
-    pegCtx.lineTo(cx + L.pegRadius * 1.4, L.spoutY + 6);
+    pegCtx.lineTo(cx + L.pegRadius * 1.4 + L.ballR, L.spoutY + 6);
     pegCtx.stroke();
 
     // Pegs — soft drop shadow first, then a glossy gradient sphere on top
@@ -531,11 +780,12 @@
       }
     }
 
-    // Bin dividers, subtly brighter near the top where balls actually funnel in
-    pegCtx.strokeStyle = 'rgba(255,255,255,0.16)';
-    pegCtx.lineWidth = 1;
+    // Bin dividers sit halfway between bin centers; the two outer ones are the walls.
     for (let k = 0; k <= L.binCount; k++) {
-      const x = cx + (k - L.R / 2) * L.spacingX;
+      const x = L.wallLeft + k * L.spacingX;
+      const outer = k === 0 || k === L.binCount;
+      pegCtx.strokeStyle = outer ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.14)';
+      pegCtx.lineWidth = outer ? 1.5 : 1;
       pegCtx.beginPath();
       pegCtx.moveTo(x, L.binTop);
       pegCtx.lineTo(x, L.floorY);
@@ -552,15 +802,17 @@
     pegCtx.lineWidth = 1.5;
     pegCtx.stroke();
 
-    // Bin index labels beneath the floor (offset from center, i.e. net left/right steps)
+    // Bin index labels beneath the floor: k = number of rightward bounces, the
+    // same quantity the mean / std dev stats are measured in. Thin out the
+    // labels when bins get too narrow for every number to fit.
     pegCtx.fillStyle = 'rgba(138,144,171,0.85)';
     pegCtx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
     pegCtx.textAlign = 'center';
     pegCtx.textBaseline = 'top';
+    const labelEvery = L.spacingX < 16 ? 2 : 1;
     for (let k = 0; k < L.binCount; k++) {
-      const label = k - L.R / 2;
-      const text = (label > 0 ? '+' : '') + (Number.isInteger(label) ? label : label.toFixed(1));
-      pegCtx.fillText(text, L.binX[k], L.floorY + 9);
+      if (k % labelEvery !== 0 && k !== L.R) continue;
+      pegCtx.fillText(String(k), L.binX[k], L.floorY + 8);
     }
   }
 
@@ -571,29 +823,31 @@
   const bvx = new Float64Array(MAX_BALLS);
   const bvy = new Float64Array(MAX_BALLS);
   const bAlive = new Uint8Array(MAX_BALLS);   // 1 = active/falling, 0 = free slot
-  const bLanded = new Uint8Array(MAX_BALLS);  // 1 = landed & resting (rendered statically)
-  const bBin = new Int16Array(MAX_BALLS).fill(-1);
-  let freeStack = [];
-  for (let i = MAX_BALLS - 1; i >= 0; i--) freeStack.push(i);
-  let activeCount = 0;
+  const bRow = new Int8Array(MAX_BALLS);      // last peg row this ball struck (-1 = none yet)
+  const bDir = new Int8Array(MAX_BALLS);      // pre-drawn coin flip for its NEXT peg: -1 left, +1 right
+  const bPegJ = new Int16Array(MAX_BALLS);    // index of the peg it's heading for, in row bRow+1
+  const bAimY = new Float64Array(MAX_BALLS);  // height at which it meets that peg's surface
+  const freeStack = [];
   const activeIdx = new Int32Array(MAX_BALLS); // compacted list of active indices
   let activeLen = 0;
 
   const binCounts = [];       // total landed per bin (unbounded count, not capped by MAX_BALLS render logic)
   const binRenderCap = 60;    // draw individual resting balls up to this many per bin; beyond -> bar fill
   let totalDropped = 0;
+  let renderMaxCount = 1;     // histogram scale from the last frame, shared with the physics rest height
 
-  function resetSim(clearControlsToo) {
+  function resetSim() {
     activeLen = 0;
     freeStack.length = 0;
     for (let i = MAX_BALLS - 1; i >= 0; i--) freeStack.push(i);
     bAlive.fill(0);
-    bLanded.fill(0);
     totalDropped = 0;
     binCounts.length = 0;
     if (layout) for (let i = 0; i < layout.binCount; i++) binCounts.push(0);
     dropAccumulator = 0;
     reservoirRemaining = state.reservoirCapacity;
+    pegGlow.fill(0);
+    clearTrace();
     clearTrails();
     updateStatsDOM();
   }
@@ -604,68 +858,86 @@
     for (let i = 0; i < layout.binCount; i++) binCounts.push(old[i] || 0);
   }
 
+  // One Bernoulli(p) trial: +1 = the ball will go right at its next peg.
+  function coinFlip() { return Math.random() < state.bias ? 1 : -1; }
+
+  // Where on the peg's crown the ball should strike, as a signed horizontal
+  // offset from the peg's center. Its sign matches the pre-drawn direction so the
+  // ball visibly glances off the correct side; scatter just varies how far off-center.
+  function strikeOffset(dir, minDist) {
+    return dir * minDist * (0.2 + 0.55 * state.scatter * Math.random());
+  }
+
+  // Returns the new ball's pool index, or -1 if none could be spawned.
   function spawnBall() {
-    if (freeStack.length === 0) return false; // pool exhausted; drop silently
-    if (reservoirRemaining <= 0) return false; // hopper is empty until Reset refills it
+    if (freeStack.length === 0) return -1; // pool exhausted; drop silently
+    if (reservoirRemaining <= 0) return -1; // hopper is empty until refilled
     const i = freeStack.pop();
-    bx[i] = layout.centerX + (Math.random() - 0.5) * 3;
+    const dir = coinFlip();
+    const minDist = layout.ballR + layout.pegRadius;
+    const off = strikeOffset(dir, minDist);
+    // Drops straight down from the spout onto the top peg, off-center on the
+    // side of its first coin flip.
+    bx[i] = layout.centerX + off;
     by[i] = layout.spoutY;
-    bvx[i] = (Math.random() - 0.5) * 6;
+    bvx[i] = 0;
     bvy[i] = 40; // small initial speed so it visibly emerges from the spout, not from rest
     bAlive[i] = 1;
-    bLanded[i] = 0;
-    bBin[i] = -1;
+    bRow[i] = -1;
+    bDir[i] = dir;
+    bPegJ[i] = 0;
+    bAimY[i] = layout.pegRows[0].y - Math.sqrt(minDist * minDist - off * off);
     activeIdx[activeLen++] = i;
     totalDropped++;
     reservoirRemaining--;
-    return true;
+    return i;
   }
 
   function burst(n) {
     for (let k = 0; k < n; k++) {
-      if (!spawnBall()) break;
+      if (spawnBall() < 0) break;
     }
     updateStatsDOM();
   }
 
   // ---------- Physics ----------
-  // Substep size is chosen ADAPTIVELY each frame (see computeSubstepDt): fine
-  // enough that a ball never moves more than about half a ball+peg collision
-  // radius per step — otherwise a fast ball could tunnel straight through a peg
-  // without the overlap being detected — but no finer than that. A fixed 1/400s
-  // step (the old value) was sized for the worst case and forced that many
-  // substeps even at gentle default settings; the adaptive step runs a fraction
-  // as many there, which is the single biggest physics speedup. Fast balls only
-  // ever occur in the peg region; the free-fall down the bins has no pegs.
-  let physAccumulator = 0;
+  // Peg strikes are modeled as one clean, gravity-driven hop per row. Free
+  // reflection physics is numerically fragile at this scale, and worse, its
+  // bounces are *correlated*: a ball that strikes a peg right of center tends to
+  // strike the next one right of center too, which fattens the tails far beyond
+  // a binomial (the original version measured χ² in the thousands). It could also
+  // glance past a peg between two substeps and skip a row entirely.
+  //
+  // Instead each ball always knows which peg it is falling toward and the height
+  // at which it will meet that peg's surface, plus a pre-drawn coin flip for which
+  // way it will go there. On reaching that height it strikes: it is launched on a
+  // real projectile arc solved to land on the next coin flip's side of the
+  // neighboring peg one row down. Every row is therefore exactly one independent
+  // Bernoulli(p) trial and the bins follow Binomial(rows, p) — while every ball
+  // still visibly falls, arcs and bounces under the gravity slider.
   let dropAccumulator = 0;
 
-  function nearestRowIndex(y) {
-    const r = Math.round((y - layout.marginTop) / layout.spacingY) - 1;
-    return r;
-  }
-
   function stepPhysics(dt) {
+    const L = layout;
     const g = state.gravity;
-    const restitution = state.restitution;
-    const jitterMag = state.jitter;
-    const R = layout.R;
-    const rBall = state.ballRadius;
-    const pegR = layout.pegRadius;
-    const minDist = rBall + pegR;
+    const R = L.R;
+    const rBall = L.ballR;
+    const minDist = rBall + L.pegRadius;
     const minDistSq = minDist * minDist;
-    const wallLeft = layout.wallLeft;
-    const wallRight = layout.wallRight;
-    const floorY = layout.floorY;
-    const binTop = layout.binTop;
-    const spacingX = layout.spacingX;
+    const wallLeft = L.wallLeft;
+    const wallRight = L.wallRight;
+    const floorY = L.floorY;
+    const binTop = L.binTop;
+    const spacingX = L.spacingX;
+    const baseRebound = Math.sqrt(2 * g * L.spacingY * (0.18 + 0.55 * state.restitution));
+    const scatter = state.scatter;
 
     let writeIdx = 0;
     for (let a = 0; a < activeLen; a++) {
       const i = activeIdx[a];
       if (!bAlive[i]) continue;
 
-      // integrate
+      // integrate (semi-implicit Euler)
       bvy[i] += g * dt;
       bx[i] += bvx[i] * dt;
       by[i] += bvy[i] * dt;
@@ -673,72 +945,52 @@
       let x = bx[i], y = by[i], vx = bvx[i], vy = bvy[i];
 
       if (y < binTop) {
-        // --- peg region: only test rows near current y (cheap culling) ---
-        const rowIdx = nearestRowIndex(y);
-        for (let rr = rowIdx - 1; rr <= rowIdx + 1; rr++) {
-          if (rr < 0 || rr >= R) continue;
-          const row = layout.pegRows[rr];
-          const py = row.y;
-          const dy0 = y - py;
-          if (dy0 * dy0 > minDistSq * 4) continue;
-          const xs = row.xs;
-          // Pegs within a row are evenly spaced by spacingX, so the nearest one(s)
-          // to this ball can be found directly instead of scanning the whole row —
-          // deep rows have up to R pegs, and this turns an O(row length) scan into
-          // an O(1) lookup, which matters a lot once thousands of balls are active.
-          const jGuess = Math.round((x - row.xs[0]) / spacingX);
-          const jLo = Math.max(0, jGuess - 1);
-          const jHi = Math.min(xs.length - 1, jGuess + 1);
-          for (let j = jLo; j <= jHi; j++) {
-            const px = xs[j];
-            const dx = x - px;
-            const dy = y - py;
-            const distSq = dx * dx + dy * dy;
-            if (distSq < minDistSq && distSq > 1e-6) {
-              const dist = Math.sqrt(distSq);
-              const nx = dx / dist, ny = dy / dist;
-              // push out of penetration
-              const overlap = minDist - dist;
-              x += nx * overlap;
-              y += ny * overlap;
-              const vDotN = vx * nx + vy * ny;
-              // Only resolve an *approaching* contact (vDotN < 0). Re-testing the same
-              // overlap on a later substep after it has already separated must not
-              // bounce it again, or a ball sitting near a peg apex "chatters" forever.
-              if (vDotN < 0) {
-                // A plain velocity-reflection bounce is numerically fragile here: its
-                // outgoing speed depends on the incoming angle/speed, and a near-dead-
-                // center hit (the common case, since consecutive rows are offset by
-                // exactly half a spacing) gives almost no natural sideways deflection —
-                // gravity then pulls the ball straight back into the same peg. Small
-                // fixes to that (minimum escape speed, rebound cap) turned out to be
-                // very sensitive to the exact hang-time math and easily over/under-shot
-                // the next row by several times, wrecking the distribution.
-                //
-                // Instead every contact resolves to one clean, calibrated "hop": a fixed
-                // rebound height (tuned by the bounciness slider) and a fixed horizontal
-                // speed sized — using real projectile-motion timing for that exact
-                // rebound height — so the arc lands the ball right around the next row's
-                // neighboring peg. This is still a real gravity-driven arc, not a
-                // teleport, but it removes the runaway energy/velocity accumulation that
-                // made continuous reflection physics unstable at this scale. Which side
-                // it hops to is decided by which side of the peg it struck (a genuine
-                // coin flip when the approach is dead-center), plus a small random
-                // jitter on top for natural-looking variation.
-                const reboundSpeed = Math.sqrt(2 * g * layout.spacingY * (0.18 + 0.55 * restitution));
-                const hangTime = (reboundSpeed + Math.sqrt(reboundSpeed * reboundSpeed + 2 * g * layout.spacingY)) / g;
-                const hopVx = (spacingX * 0.5) / hangTime;
-                const dirSign = dx !== 0 ? Math.sign(dx) : (Math.random() < 0.5 ? -1 : 1);
-                const jitterAmt = (Math.random() - 0.5) * jitterMag;
-                vx = dirSign * hopVx + jitterAmt;
-                vy = -reboundSpeed;
-              }
-            }
+        // --- peg region ---
+        const rr = bRow[i] + 1; // row of the peg this ball is falling toward
+        if (rr < R && vy > 0 && y >= bAimY[i]) {
+          // Rewind the overshoot of this substep so the bounce starts exactly at
+          // the contact point on the peg's surface.
+          const back = Math.min(1, (y - bAimY[i]) / (vy * dt));
+          x -= vx * dt * back;
+          y = bAimY[i];
+
+          const j = bPegJ[i];
+          const dir = bDir[i];
+          bRow[i] = rr;
+          pegGlow[rr * (rr + 1) / 2 + j] = 1;
+          if (i === tracedIdx) recordTraceStep(dir);
+
+          // Aim for the next row's peg on the chosen side (or the bin below the
+          // last row), meeting it off-center on the side of the NEXT coin flip.
+          const targetX = L.pegRows[rr].xs[j] + dir * spacingX * 0.5;
+          let aimX, aimY;
+          if (rr + 1 < R) {
+            const nextDir = coinFlip();
+            const off = strikeOffset(nextDir, minDist);
+            aimX = targetX + off;
+            aimY = L.pegRows[rr + 1].y - Math.sqrt(minDistSq - off * off);
+            bDir[i] = nextDir;
+            bPegJ[i] = dir > 0 ? j + 1 : j;
+            bAimY[i] = aimY;
+          } else {
+            aimX = targetX;
+            aimY = binTop;
           }
+
+          // Rebound height comes from the bounciness slider (scatter adds some
+          // per-hop variety); the flight time to reach aimY is then solved from
+          // projectile motion. The +g*dt/2 term matches the semi-implicit Euler
+          // integrator above, so the discrete path lands where the math says.
+          const rebound = baseRebound * (1 + (Math.random() - 0.5) * 0.5 * scatter);
+          const v0 = -rebound + 0.5 * g * dt;
+          const drop = Math.max(aimY - y, 0);
+          const flightT = (-v0 + Math.sqrt(v0 * v0 + 2 * g * drop)) / g;
+          vx = (aimX - x) / flightT;
+          vy = -rebound;
         }
         // side walls of the funnel area (generous bounds so balls don't escape)
-        if (x < wallLeft + rBall) { x = wallLeft + rBall; vx = Math.abs(vx) * restitution; }
-        if (x > wallRight - rBall) { x = wallRight - rBall; vx = -Math.abs(vx) * restitution; }
+        if (x < wallLeft + rBall) { x = wallLeft + rBall; vx = Math.abs(vx) * 0.5; }
+        if (x > wallRight - rBall) { x = wallRight - rBall; vx = -Math.abs(vx) * 0.5; }
 
         // Safety clamp: bounds runaway velocity from any residual numerical chatter.
         const maxV = 2200;
@@ -747,32 +999,24 @@
       } else {
         // --- bin channel region ---
         // determine which bin this x currently belongs to and clamp within its divider walls
-        let k = Math.round((x - layout.centerX) / spacingX + R / 2);
+        let k = Math.round((x - L.centerX) / spacingX + R / 2);
         if (k < 0) k = 0;
         if (k > R) k = R;
-        const binCenter = layout.binX[k];
+        const binCenter = L.binX[k];
         const leftWall = binCenter - spacingX / 2 + rBall;
         const rightWall = binCenter + spacingX / 2 - rBall;
         if (x < leftWall) { x = leftWall; vx = Math.abs(vx) * 0.3; }
         if (x > rightWall) { x = rightWall; vx = -Math.abs(vx) * 0.3; }
 
-        // Cap how tall a bin's rest pile can visually grow: without this, a heavily
-        // favored center bin (which realistically gets a large share of all balls)
-        // would compute a rest position that climbs above binTop and clips straight
-        // through the peg field. Past the cap, additional balls in that bin just
-        // settle at the same capped height — the exact count is still tracked and
-        // shown as a number once the pile is full (see render()).
-        const stackHeight = Math.min((binCounts[k] || 0) * (rBall * 2 * 0.92), layout.maxStackHeight);
-        const restY = floorY - rBall - stackHeight;
+        // Come to rest on top of the pile exactly as render() draws it (scaled to
+        // the tallest bar), so a ball never vanishes in mid-air above its pile.
+        const pileH = Math.min(((binCounts[k] || 0) / renderMaxCount) * (floorY - binTop), floorY - binTop);
+        const restY = Math.max(floorY - pileH, binTop + rBall * 2) - rBall;
         if (y >= restY) {
-          y = restY;
-          vx = 0; vy = 0;
-          bLanded[i] = 1;
           bAlive[i] = 0;
-          bBin[i] = k;
           binCounts[k] = (binCounts[k] || 0) + 1;
           freeStack.push(i);
-          bx[i] = x; by[i] = y;
+          if (i === tracedIdx) finishTrace(k);
           continue; // don't keep in active list
         }
       }
@@ -783,57 +1027,164 @@
     activeLen = writeIdx;
   }
 
-  // ---------- Trails (optional, drawn on a persistent low-opacity layer) ----------
+  // ---------- Ball tracing ----------
+  // Follows one highlighted ball: its path is drawn on the board and every
+  // left/right decision is spelled out, ending with the bin it lands in.
+  let tracedIdx = -1;
+  const tracePts = [];   // flat [x0, y0, x1, y1, ...] in CSS px
+  let traceSteps = '';
+  let traceBin = -1;
+  let traceFade = 0;     // seconds left to keep showing a finished trace
+
+  function traceBall() {
+    if (!layout || tracedIdx >= 0) return;
+    const i = spawnBall();
+    if (i < 0) { flashEmpty(); return; }
+    tracedIdx = i;
+    tracePts.length = 0;
+    tracePts.push(bx[i], by[i]);
+    traceSteps = '';
+    traceBin = -1;
+    traceFade = 0;
+    updateTraceInfo();
+    updateStatsDOM();
+  }
+  function recordTraceStep(dir) {
+    traceSteps += dir > 0 ? 'R' : 'L';
+    updateTraceInfo();
+  }
+  function finishTrace(k) {
+    tracedIdx = -1;
+    traceBin = k;
+    traceFade = 6;
+    updateTraceInfo();
+  }
+  function clearTrace() {
+    tracedIdx = -1;
+    tracePts.length = 0;
+    traceSteps = '';
+    traceFade = 0;
+    updateTraceInfo();
+  }
+  function updateTraceInfo() {
+    const active = tracedIdx >= 0 || traceFade > 0;
+    traceInfoEl.classList.toggle('show', active);
+    if (!active) return;
+    // traceSteps only ever contains 'L'/'R', so this markup is safe to build.
+    const steps = traceSteps.split('').map(c => `<span class="${c}">${c}</span>`).join('') || '…';
+    const rights = (traceSteps.match(/R/g) || []).length;
+    traceInfoEl.innerHTML = tracedIdx >= 0
+      ? `<b>Tracing a ball</b> · row ${traceSteps.length}/${layout.R}<br><span class="steps">${steps}</span>`
+      : `<b>Landed in bin ${traceBin}</b> · ${rights} right, ${traceSteps.length - rights} left<br><span class="steps">${steps}</span>`;
+  }
+
+  let emptyFlashTimer = 0;
+  function flashEmpty() { emptyFlashTimer = 1.5; }
+
+  // ---------- Trails (optional, drawn on a persistent fading layer) ----------
   const trailCanvas = document.createElement('canvas');
   const trailCtx = trailCanvas.getContext('2d');
-  let trailCanvasNeedsClear = false;
   function clearTrails() {
-    trailCtx.setTransform(1,0,0,1,0,0);
+    trailCtx.setTransform(1, 0, 0, 1, 0, 0);
     trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
   }
 
   // ---------- Stats ----------
-  function logChoose(n, k) {
-    // log( n! / (k!(n-k)!) ) via lgamma approximation using Math (Stirling) for stability
-    function lgamma(x) {
-      // Lanczos approximation
-      const g = 7;
-      const c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028,
-        771.32342877765313, -176.61502916214059, 12.507343278686905,
-        -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
-      if (x < 0.5) {
-        return Math.log(Math.PI / Math.sin(Math.PI * x)) - lgamma(1 - x);
-      }
-      x -= 1;
-      let a = c[0];
-      const t = x + g + 0.5;
-      for (let i = 1; i < g + 2; i++) a += c[i] / (x + i);
-      return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+  function lgamma(x) {
+    // Lanczos approximation
+    const g = 7;
+    const c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028,
+      771.32342877765313, -176.61502916214059, 12.507343278686905,
+      -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+    if (x < 0.5) {
+      return Math.log(Math.PI / Math.sin(Math.PI * x)) - lgamma(1 - x);
     }
+    x -= 1;
+    let a = c[0];
+    const t = x + g + 0.5;
+    for (let i = 1; i < g + 2; i++) a += c[i] / (x + i);
+    return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+  }
+  function logChoose(n, k) {
     return lgamma(n + 1) - lgamma(k + 1) - lgamma(n - k + 1);
   }
 
-  // Binomial(n=R, p=0.5) probabilities depend only on R, so cache them and just
-  // rescale by the running total — this keeps the per-frame histogram off the
-  // expensive lgamma/exp path entirely (it used to recompute them every frame).
-  let cachedBinomR = -1, cachedBinomProb = null;
-  function binomProbs(R) {
-    if (R === cachedBinomR) return cachedBinomProb;
-    const p = new Float64Array(R + 1);
-    for (let k = 0; k <= R; k++) p[k] = Math.exp(logChoose(R, k) - R * Math.LN2); // p=0.5
-    cachedBinomR = R;
-    cachedBinomProb = p;
-    return p;
+  // Upper regularized incomplete gamma Q(a, x) — the chi-squared survival
+  // function is Q(df/2, chi2/2). Series for small x, Lentz continued fraction
+  // otherwise (Numerical Recipes, gser/gcf).
+  function gammaQ(a, x) {
+    if (x <= 0) return 1;
+    const lnPre = -x + a * Math.log(x) - lgamma(a);
+    if (x < a + 1) {
+      let ap = a, del = 1 / a, sum = del;
+      for (let n = 0; n < 500; n++) {
+        ap += 1; del *= x / ap; sum += del;
+        if (Math.abs(del) < Math.abs(sum) * 1e-14) break;
+      }
+      return Math.max(0, 1 - sum * Math.exp(lnPre));
+    }
+    const tiny = 1e-300;
+    let b = x + 1 - a, c = 1 / tiny, d = 1 / b, h = d;
+    for (let n = 1; n < 500; n++) {
+      const an = -n * (n - a);
+      b += 2;
+      d = an * d + b; if (Math.abs(d) < tiny) d = tiny;
+      c = b + an / c; if (Math.abs(c) < tiny) c = tiny;
+      d = 1 / d;
+      const del = d * c;
+      h *= del;
+      if (Math.abs(del - 1) < 1e-14) break;
+    }
+    return Math.exp(lnPre) * h;
+  }
+
+  // Binomial(n=R, p) probabilities depend only on R and p, so cache them and
+  // just rescale by the running total — keeps the per-frame histogram off the
+  // expensive lgamma/exp path entirely.
+  let cachedBinomKey = '', cachedBinomProb = null;
+  function binomProbs(R, p) {
+    const key = R + ':' + p;
+    if (key === cachedBinomKey) return cachedBinomProb;
+    const probs = new Float64Array(R + 1);
+    const lp = Math.log(p), lq = Math.log(1 - p);
+    for (let k = 0; k <= R; k++) probs[k] = Math.exp(logChoose(R, k) + k * lp + (R - k) * lq);
+    cachedBinomKey = key;
+    cachedBinomProb = probs;
+    return probs;
   }
 
   function theoreticalCounts(R, total) {
-    const p = binomProbs(R);
+    const p = binomProbs(R, state.bias);
     const out = new Float64Array(R + 1);
     for (let k = 0; k <= R; k++) out[k] = p[k] * total;
     return out;
   }
 
+  // Pearson chi-squared test against Binomial(R, p). Adjacent bins are pooled
+  // until each group expects at least 5 balls — the usual validity condition —
+  // since the far tail bins expect almost nothing and would otherwise dominate.
+  function chiSquareFit(R, total) {
+    const expected = theoreticalCounts(R, total);
+    const groups = [];
+    let obsAcc = 0, expAcc = 0;
+    for (let k = 0; k <= R; k++) {
+      obsAcc += binCounts[k] || 0;
+      expAcc += expected[k];
+      if (expAcc >= 5) { groups.push([obsAcc, expAcc]); obsAcc = 0; expAcc = 0; }
+    }
+    if (groups.length && expAcc > 0) {
+      const last = groups[groups.length - 1];
+      last[0] += obsAcc; last[1] += expAcc;
+    }
+    if (groups.length < 3) return null;
+    let chi = 0;
+    for (const [o, e] of groups) chi += (o - e) * (o - e) / e;
+    const df = groups.length - 1;
+    return { chi, df, pValue: gammaQ(df / 2, chi / 2) };
+  }
+
   const statTotal = document.getElementById('statTotal');
+  const statLanded = document.getElementById('statLanded');
   const statReservoir = document.getElementById('statReservoir');
   const statFlight = document.getElementById('statFlight');
   const statMeanA = document.getElementById('statMeanA');
@@ -841,46 +1192,52 @@
   const statStdA = document.getElementById('statStdA');
   const statStdT = document.getElementById('statStdT');
   const statChi = document.getElementById('statChi');
+  const statVerdict = document.getElementById('statVerdict');
+
+  function landedTotal() {
+    let n = 0;
+    for (let k = 0; k < binCounts.length; k++) n += binCounts[k];
+    return n;
+  }
 
   let lastStatsUpdate = 0;
   function updateStatsDOM() {
     statTotal.textContent = totalDropped.toLocaleString();
     statReservoir.textContent = reservoirRemaining.toLocaleString();
     statFlight.textContent = activeLen.toLocaleString();
+    emptyNoteEl.classList.toggle('show', reservoirRemaining <= 0 && (activeLen === 0 || emptyFlashTimer > 0));
 
     const R = layout ? layout.R : 0;
-    let landedTotal = 0;
-    let sum = 0, sumSq = 0;
+    let landed = 0, sum = 0, sumSq = 0;
     for (let k = 0; k <= R; k++) {
       const c = binCounts[k] || 0;
-      landedTotal += c;
+      landed += c;
       sum += k * c;
       sumSq += k * k * c;
     }
-    const meanA = landedTotal > 0 ? sum / landedTotal : NaN;
-    const varA = landedTotal > 0 ? (sumSq / landedTotal - meanA * meanA) : NaN;
-    const stdA = Math.sqrt(Math.max(varA, 0));
+    statLanded.textContent = landed.toLocaleString();
+    const meanA = landed > 0 ? sum / landed : NaN;
+    const varA = landed > 1 ? (sumSq - landed * meanA * meanA) / (landed - 1) : NaN;
 
-    const p = 0.5;
-    const meanT = R * p;
-    const stdT = Math.sqrt(R * p * (1 - p));
+    const p = state.bias;
+    statMeanA.textContent = landed > 0 ? meanA.toFixed(2) : '–';
+    statMeanT.textContent = R > 0 ? (R * p).toFixed(2) : '–';
+    statStdA.textContent = landed > 1 ? Math.sqrt(Math.max(varA, 0)).toFixed(2) : '–';
+    statStdT.textContent = R > 0 ? Math.sqrt(R * p * (1 - p)).toFixed(2) : '–';
 
-    statMeanA.textContent = landedTotal > 0 ? meanA.toFixed(2) : '–';
-    statMeanT.textContent = R > 0 ? meanT.toFixed(2) : '–';
-    statStdA.textContent = landedTotal > 0 ? stdA.toFixed(2) : '–';
-    statStdT.textContent = R > 0 ? stdT.toFixed(2) : '–';
-
-    if (landedTotal > 5 && R > 0) {
-      const theory = theoreticalCounts(R, landedTotal);
-      let chi = 0;
-      for (let k = 0; k <= R; k++) {
-        const exp = Math.max(theory[k], 1e-6);
-        const obs = binCounts[k] || 0;
-        chi += (obs - exp) * (obs - exp) / exp;
-      }
-      statChi.textContent = chi.toFixed(2);
+    const fit = landed >= 30 && R > 0 ? chiSquareFit(R, landed) : null;
+    if (fit) {
+      const pv = fit.pValue;
+      statChi.textContent = `χ² = ${fit.chi.toFixed(2)} · df = ${fit.df} · p = ${pv < 0.001 ? '< 0.001' : pv.toFixed(3)}`;
+      const [cls, text] = pv >= 0.05 ? ['good', 'Matches binomial']
+                        : pv >= 0.01 ? ['warn', 'Borderline']
+                        : ['bad', 'Deviates'];
+      statVerdict.className = 'pill ' + cls;
+      statVerdict.textContent = text;
     } else {
-      statChi.textContent = '–';
+      statChi.textContent = 'Needs a few dozen landed balls.';
+      statVerdict.className = 'pill';
+      statVerdict.textContent = 'waiting…';
     }
   }
 
@@ -908,7 +1265,7 @@
       const u = s / steps;
       const x = cx - halfWAtSurface + u * 2 * halfWAtSurface;
       const bump = Math.sin(u * Math.PI * 7 + 1.4) * 2.1 + Math.sin(u * Math.PI * 2.6) * 1.6;
-      const y = surfaceY + bump;
+      const y = Math.max(surfaceY + bump, L.hopperTop + 1);
       if (s === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
     ctx.lineTo(cx + L.hopperBotHalfW, L.hopperBottom);
@@ -937,162 +1294,283 @@
 
   // Bin-zone histogram: theoretical + actual counts drawn as background bars
   // directly behind the landed-ball piles, sharing the same x columns and the
-  // same vertical span (binTop..floorY) — no separate floating chart to clip
-  // against the drop funnel or drift out of alignment with the real bins.
-  // Returns { maxCount, theory } so render() can size the landed-ball piles using
-  // the *exact* same count -> height scale as the bars drawn here. They used to
-  // be computed independently — the bars were proportional to the tallest bin,
-  // but the piles were stacked at literal ball-diameter height and capped once
-  // they physically reached the peg field, so two very different bin counts
-  // (say 26 vs 93) could render as visually identical pile heights while the
-  // bars behind them correctly showed very different heights. Same formula now,
-  // so the pile top always lines up with its own bar top.
-  function drawBinHistogram() {
+  // same vertical span (binTop..floorY). Returns maxCount so render() can size
+  // the landed-ball piles using the *exact* same count -> height scale as the
+  // bars drawn here, so a pile top always lines up with its own bar top.
+  // The theory curves are scaled by balls that have actually LANDED — scaling by
+  // everything dropped (in-flight balls included) puts the curve far above the bars.
+  function drawBinHistogram(landed) {
     const L = layout, R = L.R;
+    const p = state.bias;
     let maxCount = 1;
     for (let k = 0; k <= R; k++) maxCount = Math.max(maxCount, binCounts[k] || 0);
-    const theory = state.showTheory ? theoreticalCounts(R, totalDropped) : null;
+    const theory = state.showTheory ? theoreticalCounts(R, landed) : null;
     if (theory) for (let k = 0; k <= R; k++) maxCount = Math.max(maxCount, theory[k]);
 
     const zoneH = L.floorY - L.binTop;
+    const heightFor = c => Math.min((c / maxCount) * zoneH, zoneH);
 
     ctx.globalAlpha = 0.16;
+    ctx.fillStyle = '#6ea8fe';
     for (let k = 0; k <= R; k++) {
-      const c = binCounts[k] || 0;
-      const h = Math.min((c / maxCount) * zoneH, zoneH);
-      const x = L.binX[k] - L.spacingX * 0.42;
-      const w = L.spacingX * 0.84;
-      ctx.fillStyle = '#6ea8fe';
-      ctx.fillRect(x, L.floorY - h, w, h);
+      const h = heightFor(binCounts[k] || 0);
+      ctx.fillRect(L.binX[k] - L.spacingX * 0.42, L.floorY - h, L.spacingX * 0.84, h);
     }
     ctx.globalAlpha = 1;
+
+    if (state.showNormal && landed > 0) {
+      // Continuous N(np, np(1-p)) density, scaled to expected balls per bin.
+      const mu = R * p, sigma = Math.sqrt(R * p * (1 - p));
+      const norm = landed / (sigma * Math.sqrt(2 * Math.PI));
+      ctx.strokeStyle = '#57d38c';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 5]);
+      ctx.beginPath();
+      for (let x = L.wallLeft, first = true; x <= L.wallRight; x += 2, first = false) {
+        const k = (x - L.centerX) / L.spacingX + R / 2;
+        const z = (k - mu) / sigma;
+        const y = L.floorY - heightFor(norm * Math.exp(-0.5 * z * z));
+        if (first) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     if (theory) {
       ctx.strokeStyle = '#ffb454';
       ctx.lineWidth = 2;
       ctx.beginPath();
       for (let k = 0; k <= R; k++) {
-        const h = Math.min((theory[k] / maxCount) * zoneH, zoneH);
-        const x = L.binX[k], y = L.floorY - h;
+        const x = L.binX[k], y = L.floorY - heightFor(theory[k]);
         if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
       ctx.stroke();
       ctx.fillStyle = '#ffb454';
+      ctx.beginPath();
       for (let k = 0; k <= R; k++) {
-        const h = Math.min((theory[k] / maxCount) * zoneH, zoneH);
-        ctx.beginPath();
-        ctx.arc(L.binX[k], L.floorY - h, 2.2, 0, Math.PI * 2);
-        ctx.fill();
+        const x = L.binX[k], y = L.floorY - heightFor(theory[k]);
+        ctx.moveTo(x + 2.4, y);
+        ctx.arc(x, y, 2.4, 0, Math.PI * 2);
       }
+      ctx.fill();
     }
     return maxCount;
   }
 
-  // Pre-rendered ball sprite. Creating a radial gradient per ball per frame was
-  // by far the heaviest cost in the render loop; instead the glossy sphere is
-  // rasterized once to an offscreen canvas (at device-pixel resolution) and each
-  // ball is blitted with a single drawImage — hundreds of times cheaper, and
-  // rebuilt only when the ball size or device pixel ratio actually changes.
-  const ballSprite = document.createElement('canvas');
-  const ballSpriteCtx = ballSprite.getContext('2d');
-  let spriteR = -1, spriteDpr = -1, spriteDrawSize = 0;
-  function ensureBallSprite() {
-    const r = state.ballRadius;
-    if (r === spriteR && dpr === spriteDpr) return;
-    spriteR = r; spriteDpr = dpr;
-    const pad = Math.max(1.5, r * 0.35);
-    const cssSize = r * 2 + pad * 2;
-    spriteDrawSize = cssSize;
-    ballSprite.width = Math.ceil(cssSize * dpr);
-    ballSprite.height = Math.ceil(cssSize * dpr);
-    const g = ballSpriteCtx;
+  // Pre-rendered sprites. Creating a radial gradient per ball per frame was by
+  // far the heaviest cost in the render loop; instead each glossy sphere is
+  // rasterized once to an offscreen canvas (at device-pixel resolution) and
+  // every ball is blitted with a single drawImage — hundreds of times cheaper,
+  // and rebuilt only when the ball size or device pixel ratio actually changes.
+  const HUE_STEPS = 32;
+  let ballSprite = null, hueSprites = [], glowSprite = null;
+  let spriteKey = '', spriteDrawSize = 0, glowDrawSize = 0;
+
+  function makeSphere(r, cssSize, c0, c1, c2) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = Math.ceil(cssSize * dpr);
+    const g = cv.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.clearRect(0, 0, cssSize, cssSize);
     const c = cssSize / 2;
     const grad = g.createRadialGradient(c - r * 0.35, c - r * 0.35, 0.3, c, c, r * 1.1);
-    grad.addColorStop(0, '#ffffff');
-    grad.addColorStop(0.6, '#dbe6ff');
-    grad.addColorStop(1, '#93a8e6');
+    grad.addColorStop(0, c0);
+    grad.addColorStop(0.6, c1);
+    grad.addColorStop(1, c2);
     g.fillStyle = grad;
     g.beginPath();
     g.arc(c, c, r, 0, Math.PI * 2);
     g.fill();
+    return cv;
   }
 
-  function render() {
+  function ensureSprites() {
+    const r = layout.ballR, pr = layout.pegRadius;
+    const key = r + ':' + pr + ':' + dpr;
+    if (key === spriteKey) return;
+    spriteKey = key;
+    spriteDrawSize = r * 2 + Math.max(1.5, r * 0.35) * 2;
+    ballSprite = makeSphere(r, spriteDrawSize, '#ffffff', '#dbe6ff', '#93a8e6');
+    hueSprites = [];
+    for (let h = 0; h < HUE_STEPS; h++) {
+      const hue = rainbowHue(h / (HUE_STEPS - 1));
+      hueSprites.push(makeSphere(r, spriteDrawSize, '#ffffff', `hsl(${hue},90%,72%)`, `hsl(${hue},70%,48%)`));
+    }
+
+    glowDrawSize = pr * 7;
+    glowSprite = document.createElement('canvas');
+    glowSprite.width = glowSprite.height = Math.ceil(glowDrawSize * dpr);
+    const g = glowSprite.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const c = glowDrawSize / 2;
+    const grad = g.createRadialGradient(c, c, 0, c, c, c);
+    grad.addColorStop(0, 'rgba(255,236,190,0.95)');
+    grad.addColorStop(0.25, 'rgba(255,190,90,0.55)');
+    grad.addColorStop(1, 'rgba(255,150,40,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, glowDrawSize, glowDrawSize);
+  }
+
+  function drawPegGlow(dt) {
+    const L = layout;
+    const decay = Math.exp(-dt * 4.5);
+    const half = glowDrawSize / 2;
+    ctx.globalCompositeOperation = 'lighter';
+    let idx = 0;
+    for (let r = 0; r < L.R; r++) {
+      const row = L.pegRows[r];
+      for (let j = 0; j <= r; j++, idx++) {
+        const gl = pegGlow[idx];
+        if (gl < 0.02) { pegGlow[idx] = 0; continue; }
+        ctx.globalAlpha = gl;
+        ctx.drawImage(glowSprite, row.xs[j] - half, row.y - half, glowDrawSize, glowDrawSize);
+        pegGlow[idx] = gl * decay;
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function drawTrace(dt) {
+    if (tracedIdx >= 0) {
+      tracePts.push(bx[tracedIdx], by[tracedIdx]);
+    } else if (traceFade > 0) {
+      traceFade -= dt;
+      if (traceFade <= 0) { tracePts.length = 0; updateTraceInfo(); return; }
+    } else {
+      return;
+    }
+    const alpha = tracedIdx >= 0 ? 1 : Math.min(1, traceFade / 1.5);
+    if (tracePts.length >= 4) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(tracePts[0], tracePts[1]);
+      for (let q = 2; q < tracePts.length; q += 2) ctx.lineTo(tracePts[q], tracePts[q + 1]);
+      ctx.strokeStyle = 'rgba(255,126,182,0.28)';
+      ctx.lineWidth = 7;
+      ctx.stroke();
+      ctx.strokeStyle = '#ff9ecb';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (tracedIdx >= 0) {
+      const r = layout.ballR;
+      ctx.beginPath();
+      ctx.arc(bx[tracedIdx], by[tracedIdx], r + 3.5, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ff7eb6';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#ffd1e6';
+      ctx.beginPath();
+      ctx.arc(bx[tracedIdx], by[tracedIdx], r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function render(dt) {
+    const L = layout;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#0b0e1c';
     ctx.fillRect(0, 0, W, H);
     ctx.drawImage(pegLayer, 0, 0, W, H);
     drawHopperPile();
+    ensureSprites();
+    if (state.showGlow) drawPegGlow(dt);
 
     if (state.showTrails) {
       ctx.drawImage(trailCanvas, 0, 0, W, H);
     }
 
-    const R = layout.R;
-    const rBall = state.ballRadius;
-    const maxCount = drawBinHistogram();
+    const R = L.R;
+    const rBall = L.ballR;
+    const maxCount = drawBinHistogram(landedTotal());
+    renderMaxCount = maxCount;
 
     // Landed balls: the pile's TOP always sits at the same height as this bin's
     // histogram bar (count/maxCount * zone height) — individual balls are drawn
     // bottom-up at their real physical diameter until they run out of room or
     // hit the render cap, then a translucent fill covers the rest of the way up
     // to that same proportional top, with the exact count labeled alongside.
-    const zoneH = layout.floorY - layout.binTop;
+    const zoneH = L.floorY - L.binTop;
     const diameterEff = rBall * 2 * 0.92;
-
-    // Pass 1: every individually-drawn resting ball as ONE path, filled once —
-    // far cheaper than a beginPath/arc/fill per ball when piles are deep.
-    ctx.fillStyle = '#9fc1ff';
-    ctx.beginPath();
+    const pileTop = new Float64Array(R + 1);
+    const visible = new Int32Array(R + 1);
     for (let k = 0; k <= R; k++) {
       const c = binCounts[k] || 0;
-      if (c === 0) continue;
-      const x = layout.binX[k];
-      const pileTopY = layout.floorY - Math.min((c / maxCount) * zoneH, zoneH);
-      const fullBallsThatFit = Math.max(0, Math.floor((layout.floorY - rBall - pileTopY) / diameterEff));
-      const visibleCount = Math.min(c, binRenderCap, fullBallsThatFit);
-      for (let s = 0; s < visibleCount; s++) {
-        const y = layout.floorY - rBall - s * diameterEff;
+      pileTop[k] = L.floorY - Math.min((c / maxCount) * zoneH, zoneH);
+      const fit = Math.max(0, Math.floor((L.floorY - rBall - pileTop[k]) / diameterEff));
+      visible[k] = Math.min(c, binRenderCap, fit);
+    }
+
+    // Pass 1: individually-drawn resting balls batched into as few paths as
+    // possible (one total, or one per bin in rainbow mode) and filled once each.
+    const pileBalls = (k) => {
+      const x = L.binX[k];
+      for (let s = 0; s < visible[k]; s++) {
+        const y = L.floorY - rBall - s * diameterEff;
         ctx.moveTo(x + rBall, y);
         ctx.arc(x, y, rBall, 0, Math.PI * 2);
       }
+    };
+    if (state.rainbow) {
+      for (let k = 0; k <= R; k++) {
+        if (!visible[k]) continue;
+        ctx.fillStyle = L.binColors[k];
+        ctx.beginPath(); pileBalls(k); ctx.fill();
+      }
+    } else {
+      ctx.fillStyle = '#9fc1ff';
+      ctx.beginPath();
+      for (let k = 0; k <= R; k++) pileBalls(k);
+      ctx.fill();
     }
-    ctx.fill();
 
     // Pass 2: overflow fill + exact-count label for any bin whose pile is capped.
-    ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.font = '600 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     for (let k = 0; k <= R; k++) {
       const c = binCounts[k] || 0;
-      if (c === 0) continue;
-      const x = layout.binX[k];
-      const pileTopY = layout.floorY - Math.min((c / maxCount) * zoneH, zoneH);
-      const fullBallsThatFit = Math.max(0, Math.floor((layout.floorY - rBall - pileTopY) / diameterEff));
-      const visibleCount = Math.min(c, binRenderCap, fullBallsThatFit);
-      if (c > visibleCount) {
-        const overflowBottomY = layout.floorY - rBall - visibleCount * diameterEff;
-        ctx.fillStyle = 'rgba(159,193,255,0.55)';
-        ctx.fillRect(x - layout.spacingX * 0.3, pileTopY, layout.spacingX * 0.6, overflowBottomY - pileTopY);
+      if (c <= visible[k]) continue;
+      const x = L.binX[k];
+      const overflowBottomY = L.floorY - rBall - visible[k] * diameterEff;
+      ctx.fillStyle = state.rainbow ? L.binColorsSoft[k] : 'rgba(159,193,255,0.55)';
+      ctx.fillRect(x - L.spacingX * 0.3, pileTop[k], L.spacingX * 0.6, overflowBottomY - pileTop[k]);
+      if (L.spacingX >= 22 || c === maxCount) {
         ctx.fillStyle = '#dce8ff';
-        ctx.fillText(c.toLocaleString(), x, pileTopY - 3);
+        ctx.fillText(c.toLocaleString(), x, pileTop[k] - 3);
       }
     }
 
-    // Active falling balls — blit the pre-rendered glossy sprite once each.
-    ensureBallSprite();
+    // Active falling balls — blit a pre-rendered glossy sprite once each.
     const spriteHalf = spriteDrawSize / 2;
-    for (let a = 0; a < activeLen; a++) {
-      const i = activeIdx[a];
-      ctx.drawImage(ballSprite, bx[i] - spriteHalf, by[i] - spriteHalf, spriteDrawSize, spriteDrawSize);
+    if (state.rainbow) {
+      const span = L.wallRight - L.wallLeft;
+      for (let a = 0; a < activeLen; a++) {
+        const i = activeIdx[a];
+        const h = Math.max(0, Math.min(HUE_STEPS - 1, Math.round((bx[i] - L.wallLeft) / span * (HUE_STEPS - 1))));
+        ctx.drawImage(hueSprites[h], bx[i] - spriteHalf, by[i] - spriteHalf, spriteDrawSize, spriteDrawSize);
+      }
+    } else {
+      for (let a = 0; a < activeLen; a++) {
+        const i = activeIdx[a];
+        ctx.drawImage(ballSprite, bx[i] - spriteHalf, by[i] - spriteHalf, spriteDrawSize, spriteDrawSize);
+      }
     }
 
+    drawTrace(dt);
+
     if (state.showTrails) {
+      // Fade the trail layer toward transparent (not toward the background
+      // colour — that would build up into an opaque veil over the pegs).
       trailCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      trailCtx.fillStyle = 'rgba(11,14,28,0.08)';
+      trailCtx.globalCompositeOperation = 'destination-out';
+      trailCtx.fillStyle = 'rgba(0,0,0,0.14)';
       trailCtx.fillRect(0, 0, W, H);
+      trailCtx.globalCompositeOperation = 'source-over';
       trailCtx.fillStyle = 'rgba(110,168,254,0.5)';
       const tr = Math.max(rBall * 0.6, 1);
       trailCtx.beginPath();
@@ -1107,20 +1585,12 @@
 
   // ---------- Main loop ----------
   let lastTime = null;
-  let frameCount = 0, fpsAccum = 0, fpsTimer = 0;
+  let frameCount = 0, fpsAccum = 0;
 
-  // Adaptive physics substep: as coarse as possible while keeping per-step
-  // displacement safely below the ball+peg collision radius (see the physics
-  // note above). Reads live gravity/geometry so it stays correct as sliders move.
-  function computeSubstepDt() {
-    const L = layout;
-    const minDist = state.ballRadius + L.pegRadius;
-    // Bound on peak peg-region approach speed: a calibrated hop tops out around
-    // sqrt(2 g spacingY) * ~1.3, plus a little slack for jitter.
-    const vMax = Math.sqrt(2 * state.gravity * L.spacingY) * 1.3 + 70;
-    const safe = (minDist * 0.5) / vMax;
-    return Math.max(1 / 600, Math.min(1 / 120, safe));
-  }
+  // Longest physics substep. Strikes are planned rather than detected, so there
+  // is no tunneling to guard against; this just keeps the arcs smooth and the
+  // integration error well under a pixel.
+  const MAX_SUBSTEP = 1 / 240;
 
   function frame(t) {
     requestAnimationFrame(frame);
@@ -1132,11 +1602,11 @@
     // fps
     frameCount++;
     fpsAccum += rawDt;
-    fpsTimer += rawDt;
-    if (fpsTimer > 0.5) {
-      fpsEl.textContent = Math.round(frameCount / fpsAccum) + ' fps  ·  ' + activeLen + ' in flight';
-      frameCount = 0; fpsAccum = 0; fpsTimer = 0;
+    if (fpsAccum > 0.5) {
+      fpsEl.textContent = Math.round(frameCount / fpsAccum) + ' fps · ' + activeLen.toLocaleString() + ' in flight';
+      frameCount = 0; fpsAccum = 0;
     }
+    if (emptyFlashTimer > 0) emptyFlashTimer -= rawDt;
 
     if (state.running && layout) {
       const simDt = rawDt * state.speed;
@@ -1156,42 +1626,33 @@
       }
       if (reservoirRemaining <= 0) dropAccumulator = 0;
 
-      // Fixed-step physics (adaptive step size) for stability regardless of the
-      // speed multiplier or the display's refresh rate.
-      const substepDt = computeSubstepDt();
-      physAccumulator += simDt;
-      let steps = 0;
-      while (physAccumulator >= substepDt && steps < 300) {
-        stepPhysics(substepDt);
-        physAccumulator -= substepDt;
-        steps++;
-      }
-      // If we hit the step cap (a very slow frame or extreme speed multiplier),
-      // drop the unconsumed remainder instead of carrying it forward — otherwise
-      // physics debt compounds frame over frame into a spiral of death. The sim
-      // simply runs a touch slow on that frame rather than freezing.
-      if (physAccumulator > substepDt) physAccumulator = substepDt;
-
-      lastStatsUpdate += rawDt;
-      if (lastStatsUpdate > 0.2) {
-        updateStatsDOM();
-        lastStatsUpdate = 0;
-      }
+      // Split each frame's sim time into equal substeps no longer than
+      // MAX_SUBSTEP, so balls advance every frame even at slow speeds on high
+      // refresh-rate displays.
+      const steps = Math.min(Math.ceil(simDt / MAX_SUBSTEP), 300);
+      const stepDt = simDt / steps;
+      for (let s = 0; s < steps; s++) stepPhysics(stepDt);
     }
 
-    if (layout) render();
+    lastStatsUpdate += rawDt;
+    if (lastStatsUpdate > 0.2) {
+      updateStatsDOM();
+      lastStatsUpdate = 0;
+    }
+
+    if (layout) render(state.running ? rawDt : 0);
   }
 
   // ---------- Resize handling ----------
   function resize() {
     const rect = boardWrap.getBoundingClientRect();
-    W = Math.max(rect.width, 300);
-    H = Math.max(rect.height, 300);
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const newW = Math.max(rect.width, 300);
+    const newH = Math.max(rect.height, 300);
+    const newDpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (layout && newW === W && newH === H && newDpr === dpr) return;
+    W = newW; H = newH; dpr = newDpr;
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
-    canvas.style.width = W + 'px';
-    canvas.style.height = H + 'px';
     trailCanvas.width = canvas.width;
     trailCanvas.height = canvas.height;
     rebuildBoard();
@@ -1200,7 +1661,7 @@
 
   // ---------- Init ----------
   resize();
-  resetSim(true);
+  resetSim();
   requestAnimationFrame(frame);
 })();
 </script>
